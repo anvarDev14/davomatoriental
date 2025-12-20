@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: attendance_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/attendance.db
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_USERNAME=${BOT_USERNAME}
+      - ADMIN_IDS=${ADMIN_IDS}
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+    networks:
+      - attendance_network
+
+  # Telegram Bot
+  bot:
+    build: ./bot
+    container_name: attendance_bot
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - API_URL=http://backend:8000
+      - WEBAPP_URL=${WEBAPP_URL}
+    networks:
+      - attendance_network
+
+  # Frontend (for development)
+  frontend:
+    build: ./frontend
+    container_name: attendance_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - attendance_network
+
+networks:
+  attendance_network:
+    driver: bridge
+
+volumes:
+  attendance_data:
