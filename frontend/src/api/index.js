@@ -65,6 +65,11 @@ export const teacherAPI = {
   getLessonAttendance: (lessonId) => api.get(`/teacher/lesson/${lessonId}/attendance`),
   markAttendance: (lessonId, studentId, status) => 
     api.post(`/teacher/lesson/${lessonId}/mark?student_id=${studentId}&status=${status}`)
+
+getSubjects: () => api.get('/teacher/subjects'),
+getGroups: () => api.get('/teacher/groups'),
+createLesson: (group_id, subject_id, room) =>
+  api.post(`/teacher/lesson/create?group_id=${group_id}&subject_id=${subject_id}${room ? '&room=' + room : ''}`),
 }
 
 // Attendance API

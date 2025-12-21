@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useTelegram } from './hooks/useTelegram'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import api from './api'
+import CreateLesson from './pages/teacher/CreateLesson'
 
 // Pages
 import StudentHome from './pages/student/Home'
@@ -14,6 +15,9 @@ import TeacherLesson from './pages/teacher/LessonDetail'
 import AdminDashboard from './pages/admin/Dashboard'
 import Register from './pages/Register'
 import Loader from './components/Loader'
+
+
+<Route path="/teacher/create" element={<CreateLesson />} />
 
 function AppContent() {
   const { user, loading, login } = useAuth()
