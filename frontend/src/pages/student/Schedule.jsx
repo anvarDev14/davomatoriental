@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { studentAPI } from '../../api'
+import { scheduleAPI, studentAPI } from '../../api'
 import Header from '../../components/Header'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
