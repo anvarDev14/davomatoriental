@@ -1,184 +1,220 @@
-"""
-Auth API - Telegram WebApp autentifikatsiya
-"""
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import Optional
+from sqlalchemy.orm import selectinload
 import hashlib
 import hmac
 import json
-from urllib.parse import unquote, parse_qs
+from urllib.parse import unquote, parse_qsl
 from datetime import datetime, timedelta
 import jwt
+from typing import Optional
+import io
 
 from app.database import get_db
 from app.config import settings
 from app.models.user import User
 from app.models.student import Student
 from app.models.teacher import Teacher
-from app.schemas.user import (
-    TelegramAuthData, UserResponse, TokenResponse,
-    StudentCreate, TeacherCreate, DirectionResponse, GroupResponse
-)
-from app.models.direction import Direction
 from app.models.group import Group
+from app.models.direction import Direction
+from app.schemas.user import TelegramAuthData
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def verify_telegram_auth(init_data: str) -> Optional[dict]:
-    """Telegram WebApp auth tekshirish"""
+def verify_telegram_data(init_data: str) -> dict:
+    """Telegram WebApp ma'lumotlarini tekshirish"""
     try:
-        parsed = parse_qs(init_data)
+        parsed_data = dict(parse_qsl(init_data))
+        hash_value = parsed_data.pop('hash', None)
         
-        # Hash ni olish
-        received_hash = parsed.get("hash", [""])[0]
+        if not hash_value:
+            return None
         
-        # Hash siz data
-        data_check_arr = []
-        for key, value in sorted(parsed.items()):
-            if key != "hash":
-                data_check_arr.append(f"{key}={value[0]}")
+        data_check_string = '\n'.join(
+            f"{k}={v}" for k, v in sorted(parsed_data.items())
+        )
         
-        data_check_string = "\n".join(data_check_arr)
-        
-        # Secret key
         secret_key = hmac.new(
             b"WebAppData",
             settings.BOT_TOKEN.encode(),
             hashlib.sha256
         ).digest()
         
-        # Hash hisoblash
         calculated_hash = hmac.new(
             secret_key,
             data_check_string.encode(),
             hashlib.sha256
         ).hexdigest()
         
-        if calculated_hash != received_hash:
-            return None
-        
-        # User ma'lumotlarini olish
-        user_data = parsed.get("user", ["{}"])[0]
-        user = json.loads(unquote(user_data))
-        
-        return user
+        if calculated_hash == hash_value:
+            if 'user' in parsed_data:
+                return json.loads(unquote(parsed_data['user']))
+        return None
     except Exception as e:
         print(f"Auth error: {e}")
         return None
 
 
-def create_access_token(user_id: int) -> str:
+def create_token(user_id: int) -> str:
     """JWT token yaratish"""
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": str(user_id), "exp": expire}
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    expire = datetime.utcnow() + timedelta(days=7)
+    payload = {
+        "sub": str(user_id),
+        "exp": expire
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
+
+async def get_current_user(
+    authorization: str = Depends(lambda: None),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Joriy foydalanuvchini olish"""
+    from fastapi import Header
+    
+    async def _get_user(authorization: str = Header(...), db: AsyncSession = Depends(get_db)):
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Token kerak")
+        
+        try:
+            token = authorization.replace("Bearer ", "").replace("tma ", "")
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            user_id = int(payload.get("sub"))
+            
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                raise HTTPException(status_code=401, detail="User topilmadi")
+            return user
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token muddati tugagan")
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=f"Noto'g'ri token: {str(e)}")
+    
+    return _get_user
+
+
+# Dependency override
+from fastapi import Header
 
 async def get_current_user(
     authorization: str = Header(...),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """JWT tokendan userni olish"""
+    """Joriy foydalanuvchini olish"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Token kerak")
+    
     try:
-        # "Bearer " ni olib tashlash
-        if authorization.startswith("Bearer "):
-            token = authorization[7:]
-        elif authorization.startswith("tma "):
-            # Telegram Mini App init data
-            user_data = verify_telegram_auth(authorization[4:])
-            if not user_data:
-                raise HTTPException(status_code=401, detail="Invalid auth")
-            
-            result = await db.execute(
-                select(User).where(User.telegram_id == user_data["id"])
-            )
-            user = result.scalar_one_or_none()
-            if not user:
-                raise HTTPException(status_code=401, detail="User not found")
-            return user
-        else:
-            token = authorization
-        
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        token = authorization.replace("Bearer ", "").replace("tma ", "")
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         user_id = int(payload.get("sub"))
         
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         
         if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        
+            raise HTTPException(status_code=401, detail="User topilmadi")
         return user
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
+        raise HTTPException(status_code=401, detail="Token muddati tugagan")
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Noto'g'ri token: {str(e)}")
 
 
-@router.post("/telegram", response_model=TokenResponse)
+@router.post("/telegram")
 async def telegram_auth(
     auth_data: TelegramAuthData,
     db: AsyncSession = Depends(get_db)
 ):
-    """Telegram WebApp orqali login"""
-    user_data = verify_telegram_auth(auth_data.init_data)
+    """Telegram orqali autentifikatsiya"""
+    telegram_user = verify_telegram_data(auth_data.init_data)
     
-    if not user_data:
-        raise HTTPException(status_code=401, detail="Invalid Telegram auth")
+    if not telegram_user:
+        raise HTTPException(status_code=401, detail="Telegram autentifikatsiya xatosi")
     
-    telegram_id = user_data["id"]
-    full_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
-    username = user_data.get("username")
+    telegram_id = telegram_user.get('id')
     
-    # Userni topish yoki yaratish
-    result = await db.execute(
-        select(User).where(User.telegram_id == telegram_id)
-    )
+    result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
     
     if not user:
-        # Yangi user yaratish
         user = User(
             telegram_id=telegram_id,
-            full_name=full_name,
-            username=username,
-            role="student"  # Default role
+            full_name=f"{telegram_user.get('first_name', '')} {telegram_user.get('last_name', '')}".strip(),
+            username=telegram_user.get('username'),
+            role='student'
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
-    else:
-        # Ma'lumotlarni yangilash
-        user.full_name = full_name
-        user.username = username
-        await db.commit()
     
-    # Token yaratish
-    access_token = create_access_token(user.id)
+    token = create_token(user.id)
     
-    return TokenResponse(
-        access_token=access_token,
-        user=UserResponse.model_validate(user)
-    )
+    return {
+        "token": token,
+        "user": {
+            "id": user.id,
+            "telegram_id": user.telegram_id,
+            "full_name": user.full_name,
+            "role": user.role
+        }
+    }
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
+@router.get("/me")
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     """Joriy user ma'lumotlari"""
-    return current_user
+    result = await db.execute(
+        select(Student)
+        .options(selectinload(Student.group))
+        .where(Student.user_id == current_user.id)
+    )
+    student = result.scalar_one_or_none()
+    
+    result = await db.execute(
+        select(Teacher).where(Teacher.user_id == current_user.id)
+    )
+    teacher = result.scalar_one_or_none()
+    
+    return {
+        "id": current_user.id,
+        "telegram_id": current_user.telegram_id,
+        "full_name": current_user.full_name,
+        "username": current_user.username,
+        "phone": current_user.phone,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "student": {
+            "id": student.id, 
+            "group_id": student.group_id,
+            "student_id": student.student_id,
+            "group_name": student.group.name if student.group else None
+        } if student else None,
+        "teacher": {
+            "id": teacher.id, 
+            "department": teacher.department,
+            "employee_id": teacher.employee_id
+        } if teacher else None
+    }
 
 
-@router.get("/directions", response_model=list[DirectionResponse])
+@router.get("/directions")
 async def get_directions(db: AsyncSession = Depends(get_db)):
-    """Barcha yo'nalishlar"""
+    """Yo'nalishlar ro'yxati"""
     result = await db.execute(select(Direction).order_by(Direction.name))
-    return result.scalars().all()
+    directions = result.scalars().all()
+    return [{"id": d.id, "name": d.name, "short_name": d.short_name} for d in directions]
 
 
-@router.get("/groups/{direction_id}", response_model=list[GroupResponse])
+@router.get("/groups/{direction_id}")
 async def get_groups(direction_id: int, db: AsyncSession = Depends(get_db)):
     """Yo'nalish bo'yicha guruhlar"""
     result = await db.execute(
@@ -186,64 +222,75 @@ async def get_groups(direction_id: int, db: AsyncSession = Depends(get_db)):
         .where(Group.direction_id == direction_id)
         .order_by(Group.name)
     )
-    return result.scalars().all()
+    groups = result.scalars().all()
+    return [{"id": g.id, "name": g.name, "direction_id": g.direction_id, "course": g.course} for g in groups]
 
 
 @router.post("/register/student")
 async def register_student(
-    data: StudentCreate,
+    group_id: int,
+    full_name: str,
+    student_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Talaba ro'yxatdan o'tish"""
-    # Tekshirish
+    """Talaba ro'yxatdan o'tishi"""
+    # Allaqachon ro'yxatdan o'tganmi?
     result = await db.execute(
         select(Student).where(Student.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Already registered as student")
     
-    # Student yaratish
+    # User nomini yangilash
+    current_user.full_name = full_name
+    current_user.role = 'student'
+    
     student = Student(
         user_id=current_user.id,
-        student_id=data.student_id,
-        group_id=data.group_id
+        group_id=group_id,
+        student_id=student_id
     )
     db.add(student)
-    
-    # User rolini yangilash
-    current_user.role = "student"
-    
     await db.commit()
     
-    return {"success": True, "message": "Registered successfully"}
+    return {"success": True, "message": "Ro'yxatdan o'tdingiz"}
 
 
 @router.post("/register/teacher")
 async def register_teacher(
-    data: TeacherCreate,
+    full_name: str,
+    department: str,
+    employee_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """O'qituvchi ro'yxatdan o'tish"""
-    # Tekshirish
+    """O'qituvchi ro'yxatdan o'tishi"""
+    # Allaqachon ro'yxatdan o'tganmi?
     result = await db.execute(
         select(Teacher).where(Teacher.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Already registered as teacher")
     
-    # Teacher yaratish
+    # User nomini yangilash
+    current_user.full_name = full_name
+    current_user.role = 'teacher'
+    
     teacher = Teacher(
         user_id=current_user.id,
-        employee_id=data.employee_id,
-        department=data.department
+        department=department,
+        employee_id=employee_id or f"T-{current_user.id}"
     )
     db.add(teacher)
-    
-    # User rolini yangilash
-    current_user.role = "teacher"
-    
     await db.commit()
     
-    return {"success": True, "message": "Registered successfully"}
+    return {"success": True, "message": "Ro'yxatdan o'tdingiz"}
+
+
+@router.get("/check-admin")
+async def check_admin(current_user: User = Depends(get_current_user)):
+    """Admin ekanligini tekshirish"""
+    admin_ids = [int(x.strip()) for x in settings.ADMIN_IDS.split(',') if x.strip()]
+    is_admin = current_user.telegram_id in admin_ids
+    return {"is_admin": is_admin}
