@@ -21,8 +21,7 @@ from app.models.group import Group
 from app.models.direction import Direction
 from app.schemas.user import TelegramAuthData
 
-router = APIRouter(prefix="/auth", tags=["auth"])
-
+router = APIRouter(tags=["auth"])
 
 def verify_telegram_data(init_data: str) -> dict:
     """Telegram WebApp ma'lumotlarini tekshirish"""

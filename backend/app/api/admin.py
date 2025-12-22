@@ -20,7 +20,7 @@ from app.models.lesson import Lesson
 from app.models.attendance import Attendance
 from app.api.auth import get_current_user
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter( tags=["admin"])
 
 
 async def check_admin(current_user: User, db: AsyncSession):
