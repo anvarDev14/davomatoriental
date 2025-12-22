@@ -73,3 +73,9 @@ export const adminAPI = {
 }
 
 export default api
+
+// Schedule API
+export const scheduleAPI = {
+  getWeekSchedule: () => api.get('/schedule/week'),
+  getToday: () => api.get('/schedule/today')
+}
