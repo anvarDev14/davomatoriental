@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import authAPI from '../api' // <-- o'zgartirildi
+import { authAPI } from '../api'
 import Loader from '../components/Loader'
 import { useTelegram } from '../hooks/useTelegram'
 import { GraduationCap, Briefcase, ChevronRight, User, Building, Hash } from 'lucide-react'
