@@ -2,15 +2,30 @@ import React, { useEffect, useState } from 'react'
 import { adminAPI } from '../../api'
 import Header from '../../components/Header'
 import Loader from '../../components/Loader'
-import { Users, GraduationCap, BookOpen, Calendar, BarChart2, Upload } from 'lucide-react'
+import { Users, GraduationCap, BookOpen, Calendar, Download, RefreshCw } from 'lucide-react'
 
 function AdminDashboard() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [exportLoading, setExportLoading] = useState(false)
+
+  // Filters
+  const [filters, setFilters] = useState({
+    start_date: '',
+    end_date: '',
+    group_id: ''
+  })
+
+  // Data lists
+  const [students, setStudents] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [groups, setGroups] = useState([])
+  const [attendanceReport, setAttendanceReport] = useState([])
 
   useEffect(() => {
     loadStats()
+    loadGroups()
   }, [])
 
   const loadStats = async () => {
@@ -24,6 +39,70 @@ function AdminDashboard() {
     }
   }
 
+  const loadGroups = async () => {
+    try {
+      const { data } = await adminAPI.getGroups()
+      setGroups(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadStudents = async () => {
+    try {
+      const { data } = await adminAPI.getStudents()
+      setStudents(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadTeachers = async () => {
+    try {
+      const { data } = await adminAPI.getTeachers()
+      setTeachers(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadAttendanceReport = async () => {
+    try {
+      const { data } = await adminAPI.getAttendanceReport(filters)
+      setAttendanceReport(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleExportExcel = async () => {
+    setExportLoading(true)
+    try {
+      const response = await adminAPI.exportExcel(filters)
+
+      // Download file
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `davomat_${new Date().toISOString().slice(0,10)}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (err) {
+      console.error(err)
+      alert('Export xatosi')
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    if (tab === 'students') loadStudents()
+    if (tab === 'teachers') loadTeachers()
+    if (tab === 'reports') loadAttendanceReport()
+  }
+
   if (loading) return <Loader />
 
   return (
@@ -33,13 +112,14 @@ function AdminDashboard() {
       {/* Tabs */}
       <div className="flex overflow-x-auto gap-2 px-4 py-2 border-b border-telegram-secondary">
         {[
-          { id: 'dashboard', label: '📊 Dashboard', icon: BarChart2 },
-          { id: 'schedule', label: '📅 Jadval', icon: Calendar },
-          { id: 'import', label: '📥 Import', icon: Upload }
+          { id: 'dashboard', label: '📊 Dashboard' },
+          { id: 'students', label: '👨‍🎓 Talabalar' },
+          { id: 'teachers', label: '👨‍🏫 O\'qituvchilar' },
+          { id: 'reports', label: '📋 Hisobotlar' }
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium ${
               activeTab === tab.id
                 ? 'bg-telegram-button text-telegram-buttonText'
@@ -52,58 +132,173 @@ function AdminDashboard() {
       </div>
 
       <main className="p-4">
+        {/* Dashboard Tab */}
         {activeTab === 'dashboard' && stats && (
           <div className="space-y-4">
-            {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <StatCard 
-                icon={<Users className="text-blue-500" />}
-                label="Talabalar"
-                value={stats.total_students}
-                color="blue"
-              />
-              <StatCard 
-                icon={<GraduationCap className="text-green-500" />}
-                label="O'qituvchilar"
-                value={stats.total_teachers}
-                color="green"
-              />
-              <StatCard 
-                icon={<BookOpen className="text-purple-500" />}
-                label="Guruhlar"
-                value={stats.total_groups}
-                color="purple"
-              />
-              <StatCard 
-                icon={<Calendar className="text-orange-500" />}
-                label="Darslar"
-                value={stats.total_lessons}
-                color="orange"
-              />
+              <StatCard icon={<Users className="text-blue-500" />} label="Talabalar" value={stats.total_students} />
+              <StatCard icon={<GraduationCap className="text-green-500" />} label="O'qituvchilar" value={stats.total_teachers} />
+              <StatCard icon={<BookOpen className="text-purple-500" />} label="Guruhlar" value={stats.total_groups} />
+              <StatCard icon={<Calendar className="text-orange-500" />} label="Jami darslar" value={stats.total_lessons} />
             </div>
 
-            {/* Total Attendance */}
             <div className="card">
-              <h3 className="font-semibold mb-2">Jami davomat yozuvlari</h3>
-              <p className="text-3xl font-bold text-telegram-button">
-                {stats.total_attendance}
-              </p>
+              <h3 className="font-semibold mb-2">Bugungi statistika</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-2xl font-bold text-telegram-button">{stats.today_lessons}</p>
+                  <p className="text-xs text-telegram-hint">Bugungi darslar</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">{stats.today_attendance}</p>
+                  <p className="text-xs text-telegram-hint">Davomat yozuvlari</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'schedule' && <ScheduleManager />}
-        {activeTab === 'import' && <ImportManager />}
+        {/* Students Tab */}
+        {activeTab === 'students' && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Talabalar ({students.length})</h3>
+              <button onClick={loadStudents} className="p-2">
+                <RefreshCw size={18} />
+              </button>
+            </div>
+            {students.map(s => (
+              <div key={s.id} className="card">
+                <p className="font-medium">{s.full_name}</p>
+                <p className="text-sm text-telegram-hint">
+                  {s.group_name} • {s.direction_name}
+                </p>
+                <p className="text-xs text-telegram-hint">ID: {s.student_id || '—'}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Teachers Tab */}
+        {activeTab === 'teachers' && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">O'qituvchilar ({teachers.length})</h3>
+              <button onClick={loadTeachers} className="p-2">
+                <RefreshCw size={18} />
+              </button>
+            </div>
+            {teachers.map(t => (
+              <div key={t.id} className="card">
+                <p className="font-medium">{t.full_name}</p>
+                <p className="text-sm text-telegram-hint">
+                  {t.department} • {t.employee_id}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Reports Tab */}
+        {activeTab === 'reports' && (
+          <div className="space-y-4">
+            {/* Filters */}
+            <div className="card space-y-3">
+              <h3 className="font-semibold">🔍 Filtrlar</h3>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-telegram-hint">Boshlanish</label>
+                  <input
+                    type="date"
+                    value={filters.start_date}
+                    onChange={(e) => setFilters({...filters, start_date: e.target.value})}
+                    className="w-full p-2 bg-telegram-secondary rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-telegram-hint">Tugash</label>
+                  <input
+                    type="date"
+                    value={filters.end_date}
+                    onChange={(e) => setFilters({...filters, end_date: e.target.value})}
+                    className="w-full p-2 bg-telegram-secondary rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-telegram-hint">Guruh</label>
+                <select
+                  value={filters.group_id}
+                  onChange={(e) => setFilters({...filters, group_id: e.target.value})}
+                  className="w-full p-2 bg-telegram-secondary rounded-lg text-sm"
+                >
+                  <option value="">Barchasi</option>
+                  {groups.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={loadAttendanceReport}
+                  className="flex-1 bg-telegram-secondary py-2 px-4 rounded-xl text-sm"
+                >
+                  🔍 Qidirish
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  disabled={exportLoading}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2 text-sm"
+                >
+                  <Download size={16} />
+                  {exportLoading ? '...' : 'Excel'}
+                </button>
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="space-y-2">
+              <h3 className="font-semibold">Natijalar ({attendanceReport.length})</h3>
+              {attendanceReport.slice(0, 50).map(a => (
+                <div key={a.id} className={`card py-2 ${
+                  a.status === 'present' ? 'border-l-4 border-green-500' :
+                  a.status === 'late' ? 'border-l-4 border-yellow-500' :
+                  'border-l-4 border-red-500'
+                }`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-sm">{a.student_name}</p>
+                      <p className="text-xs text-telegram-hint">{a.group_name} • {a.subject_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs">{a.date}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        a.status === 'present' ? 'bg-green-100 text-green-700' :
+                        a.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {a.status === 'present' ? '✅' : a.status === 'late' ? '⏰' : '❌'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
 }
 
-function StatCard({ icon, label, value, color }) {
+function StatCard({ icon, label, value }) {
   return (
-    <div className={`card bg-${color}-50`}>
+    <div className="card">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 bg-${color}-100 rounded-full flex items-center justify-center`}>
+        <div className="w-10 h-10 bg-telegram-secondary rounded-full flex items-center justify-center">
           {icon}
         </div>
         <div>
@@ -111,182 +306,6 @@ function StatCard({ icon, label, value, color }) {
           <p className="text-xs text-telegram-hint">{label}</p>
         </div>
       </div>
-    </div>
-  )
-}
-
-function ScheduleManager() {
-  const [groups, setGroups] = useState([])
-  const [selectedGroup, setSelectedGroup] = useState(null)
-  const [schedule, setSchedule] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadGroups()
-  }, [])
-
-  const loadGroups = async () => {
-    try {
-      const { data } = await adminAPI.getGroups()
-      setGroups(data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadSchedule = async (groupId) => {
-    setSelectedGroup(groupId)
-    try {
-      const { data } = await adminAPI.getSchedule(groupId)
-      setSchedule(data)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const DAY_NAMES = ['Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan']
-
-  if (loading) return <Loader />
-
-  return (
-    <div className="space-y-4">
-      {/* Group selector */}
-      <div className="card">
-        <label className="text-sm text-telegram-hint">Guruhni tanlang</label>
-        <select
-          value={selectedGroup || ''}
-          onChange={(e) => loadSchedule(e.target.value)}
-          className="w-full mt-1 p-3 bg-telegram-secondary rounded-xl"
-        >
-          <option value="">-- Tanlang --</option>
-          {groups.map(g => (
-            <option key={g.id} value={g.id}>
-              {g.name} ({g.direction_name})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Schedule */}
-      {selectedGroup && (
-        <div className="space-y-2">
-          {schedule.length > 0 ? (
-            schedule.map((item, index) => (
-              <div key={index} className="card">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-xs bg-telegram-button text-telegram-buttonText px-2 py-1 rounded">
-                      {DAY_NAMES[item.day_of_week]}
-                    </span>
-                    <h4 className="font-medium mt-1">{item.subject_name}</h4>
-                    <p className="text-sm text-telegram-hint">
-                      {item.start_time} - {item.end_time} • {item.room || 'Xona belgilanmagan'}
-                    </p>
-                  </div>
-                  <p className="text-xs text-telegram-hint">
-                    {item.teacher_name || 'O\'qituvchi belgilanmagan'}
-                  </p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="card text-center py-6 text-telegram-hint">
-              Jadval yo'q
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ImportManager() {
-  const [file, setFile] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
-
-  const handleImport = async () => {
-    if (!file) return
-    
-    setLoading(true)
-    setResult(null)
-    
-    try {
-      const { data } = await adminAPI.importSchedule(file)
-      setResult(data)
-    } catch (err) {
-      setResult({ 
-        success: false, 
-        errors: [err.response?.data?.detail || 'Xatolik'] 
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="card">
-        <h3 className="font-semibold mb-3">📥 Excel dan jadval import qilish</h3>
-        
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm text-telegram-hint">Excel fayl</label>
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => setFile(e.target.files[0])}
-              className="w-full mt-1 p-3 bg-telegram-secondary rounded-xl"
-            />
-          </div>
-
-          <button
-            onClick={handleImport}
-            disabled={!file || loading}
-            className="w-full btn-primary disabled:opacity-50"
-          >
-            {loading ? 'Yuklanmoqda...' : 'Import qilish'}
-          </button>
-        </div>
-      </div>
-
-      {/* Format info */}
-      <div className="card">
-        <h4 className="font-medium mb-2">📋 Excel format:</h4>
-        <div className="text-sm text-telegram-hint space-y-1">
-          <p>A - Guruh nomi (IT-101)</p>
-          <p>B - Fan nomi (Matematika)</p>
-          <p>C - Hafta kuni (0-5, 0=Dushanba)</p>
-          <p>D - Boshlanish vaqti (09:00)</p>
-          <p>E - Tugash vaqti (10:20)</p>
-          <p>F - Xona raqami (301)</p>
-        </div>
-      </div>
-
-      {/* Result */}
-      {result && (
-        <div className={`card ${result.success ? 'bg-green-50' : 'bg-red-50'}`}>
-          {result.success ? (
-            <>
-              <p className="text-green-700 font-medium">
-                ✅ {result.imported} ta jadval import qilindi
-              </p>
-              {result.errors?.length > 0 && (
-                <div className="mt-2 text-sm text-red-600">
-                  <p>Xatolar:</p>
-                  {result.errors.map((err, i) => (
-                    <p key={i}>• {err}</p>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="text-red-700">❌ {result.errors?.[0]}</p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
