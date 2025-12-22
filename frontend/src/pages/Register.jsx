@@ -28,6 +28,20 @@ function Register() {
     employee_id: ''
   })
 
+  // Error message helper
+  const getErrorMessage = (err) => {
+    const detail = err.response?.data?.detail
+    if (!detail) return 'Xatolik yuz berdi'
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail)) {
+      return detail.map(d => d.msg || d.message || JSON.stringify(d)).join(', ')
+    }
+    if (typeof detail === 'object') {
+      return detail.msg || detail.message || JSON.stringify(detail)
+    }
+    return 'Xatolik yuz berdi'
+  }
+
   const loadDirections = async () => {
     setLoading(true)
     try {
@@ -35,6 +49,7 @@ function Register() {
       setDirections(data)
     } catch (err) {
       console.error(err)
+      showAlert(getErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -46,6 +61,7 @@ function Register() {
       setGroups(data)
     } catch (err) {
       console.error(err)
+      showAlert(getErrorMessage(err))
     }
   }
 
@@ -93,9 +109,12 @@ function Register() {
 
       hapticFeedback('success')
       showAlert("✅ Muvaffaqiyatli ro'yxatdan o'tdingiz!")
-      window.location.reload()
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
     } catch (err) {
-      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+      console.error('Registration error:', err)
+      showAlert(getErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
@@ -123,9 +142,12 @@ function Register() {
 
       hapticFeedback('success')
       showAlert("✅ Muvaffaqiyatli ro'yxatdan o'tdingiz!")
-      window.location.reload()
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
     } catch (err) {
-      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+      console.error('Registration error:', err)
+      showAlert(getErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
