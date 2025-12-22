@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 import jwt
 from typing import Optional
 import io
-from pydantic import BaseModel
 
 from app.database import get_db
 from app.config import settings
@@ -23,19 +22,6 @@ from app.models.direction import Direction
 from app.schemas.user import TelegramAuthData
 
 router = APIRouter(tags=["auth"])
-
-
-# Student registration schema
-class StudentRegister(BaseModel):
-    group_id: int
-    student_id: Optional[str] = None
-
-
-# Teacher registration schema
-class TeacherRegister(BaseModel):
-    department: str
-    employee_id: Optional[str] = None
-
 
 def verify_telegram_data(init_data: str) -> dict:
     """Telegram WebApp ma'lumotlarini tekshirish"""
@@ -82,26 +68,48 @@ def create_token(user_id: int) -> str:
 
 
 async def get_current_user(
-        authorization: Optional[str] = Header(None),
-        db: AsyncSession = Depends(get_db)
+    authorization: str = Depends(lambda: None),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Joriy foydalanuvchini olish"""
+    from fastapi import Header
+
+    async def _get_user(authorization: str = Header(...), db: AsyncSession = Depends(get_db)):
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Token kerak")
+
+        try:
+            token = authorization.replace("Bearer ", "").replace("tma ", "")
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            user_id = int(payload.get("sub"))
+
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+
+            if not user:
+                raise HTTPException(status_code=401, detail="User topilmadi")
+            return user
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token muddati tugagan")
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=f"Noto'g'ri token: {str(e)}")
+
+    return _get_user
+
+
+# Dependency override
+from fastapi import Header
+
+async def get_current_user(
+    authorization: str = Header(...),
+    db: AsyncSession = Depends(get_db)
 ) -> User:
     """Joriy foydalanuvchini olish"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Token kerak")
 
     try:
-        # Token formatlarni tozalash
-        if authorization.startswith("Bearer "):
-            token = authorization.replace("Bearer ", "")
-        elif authorization.startswith("tma "):
-            token = authorization.replace("tma ", "")
-        else:
-            token = authorization
-
-        # Token bo'sh yoki yo'qligini tekshirish
-        if not token or token == "null" or token == "undefined":
-            raise HTTPException(status_code=401, detail="Token noto'g'ri")
-
+        token = authorization.replace("Bearer ", "").replace("tma ", "")
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         user_id = int(payload.get("sub"))
 
@@ -113,19 +121,14 @@ async def get_current_user(
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token muddati tugagan")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Noto'g'ri token")
     except Exception as e:
-        raise HTTPException(
-            status_code=401,
-            detail=f"Autentifikatsiya xatosi: {str(e)}"
-        )
+        raise HTTPException(status_code=401, detail=f"Noto'g'ri token: {str(e)}")
 
 
 @router.post("/telegram")
 async def telegram_auth(
-        auth_data: TelegramAuthData,
-        db: AsyncSession = Depends(get_db)
+    auth_data: TelegramAuthData,
+    db: AsyncSession = Depends(get_db)
 ):
     """Telegram orqali autentifikatsiya"""
     telegram_user = verify_telegram_data(auth_data.init_data)
@@ -164,8 +167,8 @@ async def telegram_auth(
 
 @router.get("/me")
 async def get_me(
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """Joriy user ma'lumotlari"""
     result = await db.execute(
@@ -192,12 +195,7 @@ async def get_me(
             "id": student.id,
             "group_id": student.group_id,
             "student_id": student.student_id,
-            "group_name": student.group.name if student and student.group else None,
-            "group": {
-                "id": student.group.id,
-                "name": student.group.name,
-                "course": student.group.course
-            } if student and student.group else None
+            "group_name": student.group.name if student.group else None
         } if student else None,
         "teacher": {
             "id": teacher.id,
@@ -210,9 +208,7 @@ async def get_me(
 @router.get("/directions")
 async def get_directions(db: AsyncSession = Depends(get_db)):
     """Yo'nalishlar ro'yxati"""
-    result = await db.execute(
-        select(Direction).order_by(Direction.name)
-    )
+    result = await db.execute(select(Direction).order_by(Direction.name))
     directions = result.scalars().all()
     return [{"id": d.id, "name": d.name, "short_name": d.short_name} for d in directions]
 
@@ -231,9 +227,11 @@ async def get_groups(direction_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/register/student")
 async def register_student(
-        data: StudentRegister,
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
+    group_id: int,
+    full_name: str,
+    student_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """Talaba ro'yxatdan o'tishi"""
     # Allaqachon ro'yxatdan o'tganmi?
@@ -243,47 +241,28 @@ async def register_student(
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Already registered as student")
 
-    # Guruh mavjudligini tekshirish
-    result = await db.execute(
-        select(Group).where(Group.id == data.group_id)
-    )
-    group = result.scalar_one_or_none()
-    if not group:
-        raise HTTPException(status_code=404, detail="Guruh topilmadi")
-
-    # Student ID unikal ekanligini tekshirish
-    if data.student_id:
-        result = await db.execute(
-            select(Student).where(Student.student_id == data.student_id)
-        )
-        existing = result.scalar_one_or_none()
-        if existing:
-            raise HTTPException(status_code=400, detail="Bu Talaba ID allaqachon band")
+    # User nomini yangilash
+    current_user.full_name = full_name
+    current_user.role = 'student'
 
     student = Student(
         user_id=current_user.id,
-        group_id=data.group_id,
-        student_id=data.student_id
+        group_id=group_id,
+        student_id=student_id
     )
     db.add(student)
-
-    # User rolini yangilash
-    current_user.role = 'student'
-
     await db.commit()
 
-    return {
-        "success": True,
-        "message": "Ro'yxatdan o'tdingiz",
-        "student_id": student.id
-    }
+    return {"success": True, "message": "Ro'yxatdan o'tdingiz"}
 
 
 @router.post("/register/teacher")
 async def register_teacher(
-        data: TeacherRegister,
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
+    full_name: str,
+    department: str,
+    employee_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """O'qituvchi ro'yxatdan o'tishi"""
     # Allaqachon ro'yxatdan o'tganmi?
@@ -293,43 +272,24 @@ async def register_teacher(
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Already registered as teacher")
 
-    # Employee ID unikal ekanligini tekshirish
-    if data.employee_id:
-        result = await db.execute(
-            select(Teacher).where(Teacher.employee_id == data.employee_id)
-        )
-        existing = result.scalar_one_or_none()
-        if existing:
-            raise HTTPException(status_code=400, detail="Bu Xodim ID allaqachon band")
+    # User nomini yangilash
+    current_user.full_name = full_name
+    current_user.role = 'teacher'
 
     teacher = Teacher(
         user_id=current_user.id,
-        department=data.department,
-        employee_id=data.employee_id or f"T-{current_user.id:03d}"
+        department=department,
+        employee_id=employee_id or f"T-{current_user.id}"
     )
     db.add(teacher)
-
-    # User rolini yangilash
-    current_user.role = 'teacher'
-    current_user.is_active = True
-
     await db.commit()
 
-    return {
-        "success": True,
-        "message": "Ro'yxatdan o'tdingiz",
-        "teacher_id": teacher.id,
-        "employee_id": teacher.employee_id
-    }
+    return {"success": True, "message": "Ro'yxatdan o'tdingiz"}
 
 
 @router.get("/check-admin")
 async def check_admin(current_user: User = Depends(get_current_user)):
     """Admin ekanligini tekshirish"""
-    try:
-        admin_ids = [int(x.strip()) for x in settings.ADMIN_IDS.split(',') if x.strip()]
-    except:
-        admin_ids = []
-
+    admin_ids = [int(x.strip()) for x in settings.ADMIN_IDS.split(',') if x.strip()]
     is_admin = current_user.telegram_id in admin_ids
     return {"is_admin": is_admin}
