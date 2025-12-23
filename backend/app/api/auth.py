@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -68,39 +68,6 @@ def create_token(user_id: int) -> str:
 
 
 async def get_current_user(
-    authorization: str = Depends(lambda: None),
-    db: AsyncSession = Depends(get_db)
-) -> User:
-    """Joriy foydalanuvchini olish"""
-    from fastapi import Header
-
-    async def _get_user(authorization: str = Header(...), db: AsyncSession = Depends(get_db)):
-        if not authorization:
-            raise HTTPException(status_code=401, detail="Token kerak")
-
-        try:
-            token = authorization.replace("Bearer ", "").replace("tma ", "")
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            user_id = int(payload.get("sub"))
-
-            result = await db.execute(select(User).where(User.id == user_id))
-            user = result.scalar_one_or_none()
-
-            if not user:
-                raise HTTPException(status_code=401, detail="User topilmadi")
-            return user
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token muddati tugagan")
-        except Exception as e:
-            raise HTTPException(status_code=401, detail=f"Noto'g'ri token: {str(e)}")
-
-    return _get_user
-
-
-# Dependency override
-from fastapi import Header
-
-async def get_current_user(
     authorization: str = Header(...),
     db: AsyncSession = Depends(get_db)
 ) -> User:
@@ -154,13 +121,35 @@ async def telegram_auth(
 
     token = create_token(user.id)
 
+    # Student yoki Teacher ma'lumotlarini olish
+    result = await db.execute(
+        select(Student).options(selectinload(Student.group)).where(Student.user_id == user.id)
+    )
+    student = result.scalar_one_or_none()
+
+    result = await db.execute(
+        select(Teacher).where(Teacher.user_id == user.id)
+    )
+    teacher = result.scalar_one_or_none()
+
     return {
         "token": token,
         "user": {
             "id": user.id,
             "telegram_id": user.telegram_id,
             "full_name": user.full_name,
-            "role": user.role
+            "role": user.role,
+            "student": {
+                "id": student.id,
+                "group_id": student.group_id,
+                "student_id": student.student_id,
+                "group_name": student.group.name if student.group else None
+            } if student else None,
+            "teacher": {
+                "id": teacher.id,
+                "department": teacher.department,
+                "employee_id": teacher.employee_id
+            } if teacher else None
         }
     }
 
@@ -227,9 +216,9 @@ async def get_groups(direction_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/register/student")
 async def register_student(
-    group_id: int,
-    full_name: str,
-    student_id: Optional[str] = None,
+    group_id: int = Query(..., description="Guruh ID"),
+    full_name: str = Query(..., description="To'liq ism"),
+    student_id: Optional[str] = Query(None, description="Talaba ID"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -239,7 +228,7 @@ async def register_student(
         select(Student).where(Student.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already registered as student")
+        raise HTTPException(status_code=400, detail="Siz allaqachon talaba sifatida ro'yxatdan o'tgansiz")
 
     # User nomini yangilash
     current_user.full_name = full_name
@@ -258,9 +247,9 @@ async def register_student(
 
 @router.post("/register/teacher")
 async def register_teacher(
-    full_name: str,
-    department: str,
-    employee_id: Optional[str] = None,
+    full_name: str = Query(..., description="To'liq ism"),
+    department: str = Query(..., description="Kafedra"),
+    employee_id: Optional[str] = Query(None, description="Xodim ID"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -270,7 +259,7 @@ async def register_teacher(
         select(Teacher).where(Teacher.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already registered as teacher")
+        raise HTTPException(status_code=400, detail="Siz allaqachon o'qituvchi sifatida ro'yxatdan o'tgansiz")
 
     # User nomini yangilash
     current_user.full_name = full_name
