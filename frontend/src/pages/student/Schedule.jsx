@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { scheduleAPI, studentAPI } from '../../api'
 import Header from '../../components/Header'
+import { studentAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
 import { Clock, MapPin, User } from 'lucide-react'
