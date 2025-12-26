@@ -15,12 +15,26 @@ import CreateLesson from './pages/teacher/CreateLesson'
 import AdminDashboard from './pages/admin/Dashboard'
 
 function AppRoutes() {
-  const { user, loading } = useAuth()
+  const { user, loading, isRegistered } = useAuth()
 
   if (loading) return <Loader />
 
-  // Ro'yxatdan o'tmagan
-  if (!user?.student && !user?.teacher && user?.role !== 'admin') {
+  // User yo'q yoki autentifikatsiya qilinmagan
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">Telegram orqali kiring</p>
+          <p className="text-telegram-hint text-sm">
+            Bu ilova faqat Telegram Mini App sifatida ishlaydi
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Ro'yxatdan o'tmagan (student yoki teacher emas)
+  if (!isRegistered) {
     return <Register />
   }
 

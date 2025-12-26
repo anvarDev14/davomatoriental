@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { authAPI } from '../api'
+import { useAuth } from '../context/AuthContext'
 import Loader from '../components/Loader'
-import { useTelegram } from '../hooks/useTelegram'
 import { GraduationCap, Briefcase, ChevronRight, User, Building, Hash } from 'lucide-react'
 
 function Register() {
-  const { showAlert, hapticFeedback } = useTelegram()
-  const [step, setStep] = useState(0) // 0 = rol tanlash
-  const [role, setRole] = useState(null) // 'student' yoki 'teacher'
+  const { refreshUser } = useAuth()
+  const [step, setStep] = useState(0)
+  const [role, setRole] = useState(null)
   const [directions, setDirections] = useState([])
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Student form
   const [studentForm, setStudentForm] = useState({
     full_name: '',
     direction_id: null,
@@ -21,14 +20,30 @@ function Register() {
     student_id: ''
   })
 
-  // Teacher form
   const [teacherForm, setTeacherForm] = useState({
     full_name: '',
     department: '',
     employee_id: ''
   })
 
-  // Error message helper
+  const tg = window.Telegram?.WebApp
+
+  const showAlert = (message) => {
+    if (tg?.showAlert) {
+      tg.showAlert(message)
+    } else {
+      alert(message)
+    }
+  }
+
+  const hapticFeedback = (type) => {
+    if (tg?.HapticFeedback) {
+      if (type === 'light') tg.HapticFeedback.impactOccurred('light')
+      if (type === 'medium') tg.HapticFeedback.impactOccurred('medium')
+      if (type === 'success') tg.HapticFeedback.notificationOccurred('success')
+    }
+  }
+
   const getErrorMessage = (err) => {
     const detail = err.response?.data?.detail
     if (!detail) return 'Xatolik yuz berdi'
@@ -109,9 +124,9 @@ function Register() {
 
       hapticFeedback('success')
       showAlert("✅ Muvaffaqiyatli ro'yxatdan o'tdingiz!")
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+
+      // User ma'lumotlarini yangilash
+      await refreshUser()
     } catch (err) {
       console.error('Registration error:', err)
       showAlert(getErrorMessage(err))
@@ -142,9 +157,9 @@ function Register() {
 
       hapticFeedback('success')
       showAlert("✅ Muvaffaqiyatli ro'yxatdan o'tdingiz!")
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+
+      // User ma'lumotlarini yangilash
+      await refreshUser()
     } catch (err) {
       console.error('Registration error:', err)
       showAlert(getErrorMessage(err))
@@ -210,7 +225,6 @@ function Register() {
       {/* STUDENT FLOW */}
       {role === 'student' && (
         <>
-          {/* Step 1: Yo'nalish */}
           {step === 1 && (
             <div className="animate-fadeIn">
               <button onClick={() => setStep(0)} className="text-telegram-button text-sm mb-3">
@@ -232,7 +246,6 @@ function Register() {
             </div>
           )}
 
-          {/* Step 2: Guruh */}
           {step === 2 && (
             <div className="animate-fadeIn">
               <button onClick={() => setStep(1)} className="text-telegram-button text-sm mb-3">
@@ -263,7 +276,6 @@ function Register() {
             </div>
           )}
 
-          {/* Step 3: Ma'lumotlar */}
           {step === 3 && (
             <div className="animate-fadeIn">
               <button onClick={() => setStep(2)} className="text-telegram-button text-sm mb-3">
