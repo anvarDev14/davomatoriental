@@ -1,12 +1,12 @@
 """
 Teacher API - O'qituvchilar uchun
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.models.user import User
@@ -18,8 +18,6 @@ from app.models.attendance import Attendance
 from app.models.subject import Subject
 from app.models.group import Group
 from app.api.auth import get_current_user
-from app.schemas.schedule import TodayLessonResponse, LessonResponse
-from app.schemas.attendance import LessonAttendanceList, AttendanceResponse
 from app.config import settings
 
 router = APIRouter()
@@ -43,7 +41,7 @@ async def get_profile(
 ):
     """O'qituvchi profili"""
     teacher = await get_teacher(current_user, db)
-    
+
     return {
         "id": teacher.id,
         "user_id": current_user.id,
@@ -55,6 +53,113 @@ async def get_profile(
     }
 
 
+@router.get("/groups")
+async def get_groups(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Barcha guruhlar ro'yxati"""
+    teacher = await get_teacher(current_user, db)
+
+    result = await db.execute(
+        select(Group)
+        .options(selectinload(Group.direction))
+        .order_by(Group.name)
+    )
+    groups = result.scalars().all()
+
+    return [
+        {
+            "id": g.id,
+            "name": g.name,
+            "course": g.course,
+            "direction_name": g.direction.name if g.direction else None
+        }
+        for g in groups
+    ]
+
+
+@router.get("/subjects")
+async def get_subjects(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Barcha fanlar ro'yxati"""
+    teacher = await get_teacher(current_user, db)
+
+    result = await db.execute(
+        select(Subject).order_by(Subject.name)
+    )
+    subjects = result.scalars().all()
+
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "short_name": s.short_name
+        }
+        for s in subjects
+    ]
+
+
+@router.post("/lesson/create")
+async def create_lesson(
+    group_id: int = Query(...),
+    subject_id: int = Query(...),
+    room: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Yangi dars yaratish"""
+    teacher = await get_teacher(current_user, db)
+
+    # Guruh mavjudligini tekshirish
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=404, detail="Guruh topilmadi")
+
+    # Fan mavjudligini tekshirish
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Fan topilmadi")
+
+    today = date.today()
+    now = datetime.now()
+
+    # Schedule yaratish (bugungi kun uchun)
+    schedule = Schedule(
+        teacher_id=teacher.id,
+        group_id=group_id,
+        subject_id=subject_id,
+        day_of_week=today.weekday(),
+        start_time=now.time(),
+        end_time=(now + timedelta(hours=1, minutes=20)).time(),
+        room=room,
+        is_active=True
+    )
+    db.add(schedule)
+    await db.commit()
+    await db.refresh(schedule)
+
+    # Lesson yaratish
+    lesson = Lesson(
+        schedule_id=schedule.id,
+        date=today,
+        status=LessonStatus.PENDING.value
+    )
+    db.add(lesson)
+    await db.commit()
+    await db.refresh(lesson)
+
+    return {
+        "success": True,
+        "message": "Dars yaratildi",
+        "lesson_id": lesson.id
+    }
+
+
 @router.get("/today")
 async def get_today_lessons(
     current_user: User = Depends(get_current_user),
@@ -62,11 +167,11 @@ async def get_today_lessons(
 ):
     """Bugungi darslar"""
     teacher = await get_teacher(current_user, db)
-    
+
     today = date.today()
     now = datetime.now()
     day_of_week = today.weekday()
-    
+
     # Bugungi jadval
     result = await db.execute(
         select(Schedule)
@@ -84,9 +189,9 @@ async def get_today_lessons(
         .order_by(Schedule.start_time)
     )
     schedules = result.scalars().all()
-    
+
     lessons_response = []
-    
+
     for schedule in schedules:
         # Dars sessiyasini topish yoki yaratish
         result = await db.execute(
@@ -98,7 +203,7 @@ async def get_today_lessons(
             )
         )
         lesson = result.scalar_one_or_none()
-        
+
         if not lesson:
             lesson = Lesson(
                 schedule_id=schedule.id,
@@ -108,20 +213,20 @@ async def get_today_lessons(
             db.add(lesson)
             await db.commit()
             await db.refresh(lesson)
-        
+
         # Statistika
         result = await db.execute(
             select(func.count(Attendance.id))
             .where(Attendance.lesson_id == lesson.id)
         )
         attendance_count = result.scalar()
-        
+
         result = await db.execute(
             select(func.count(Student.id))
             .where(Student.group_id == schedule.group_id)
         )
         total_students = result.scalar()
-        
+
         lessons_response.append({
             "id": lesson.id,
             "schedule_id": schedule.id,
@@ -136,7 +241,7 @@ async def get_today_lessons(
             "attendance_count": attendance_count,
             "total_students": total_students
         })
-    
+
     return lessons_response
 
 
@@ -148,32 +253,32 @@ async def open_lesson(
 ):
     """Darsni ochish"""
     teacher = await get_teacher(current_user, db)
-    
+
     result = await db.execute(
         select(Lesson)
         .options(selectinload(Lesson.schedule))
         .where(Lesson.id == lesson_id)
     )
     lesson = result.scalar_one_or_none()
-    
+
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     if lesson.schedule.teacher_id != teacher.id:
         raise HTTPException(status_code=403, detail="Not your lesson")
-    
+
     if lesson.status == LessonStatus.OPEN.value:
         raise HTTPException(status_code=400, detail="Already open")
-    
+
     if lesson.status == LessonStatus.CLOSED.value:
         raise HTTPException(status_code=400, detail="Already closed")
-    
+
     lesson.status = LessonStatus.OPEN.value
     lesson.opened_at = datetime.utcnow()
     lesson.opened_by = current_user.id
-    
+
     await db.commit()
-    
+
     return {"success": True, "message": "Dars ochildi"}
 
 
@@ -185,29 +290,29 @@ async def close_lesson(
 ):
     """Darsni yopish"""
     teacher = await get_teacher(current_user, db)
-    
+
     result = await db.execute(
         select(Lesson)
         .options(selectinload(Lesson.schedule))
         .where(Lesson.id == lesson_id)
     )
     lesson = result.scalar_one_or_none()
-    
+
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     if lesson.schedule.teacher_id != teacher.id:
         raise HTTPException(status_code=403, detail="Not your lesson")
-    
+
     if lesson.status != LessonStatus.OPEN.value:
         raise HTTPException(status_code=400, detail="Lesson is not open")
-    
+
     lesson.status = LessonStatus.CLOSED.value
     lesson.closed_at = datetime.utcnow()
     lesson.closed_by = current_user.id
-    
+
     await db.commit()
-    
+
     return {"success": True, "message": "Dars yopildi"}
 
 
@@ -219,7 +324,7 @@ async def get_lesson_attendance(
 ):
     """Dars davomati"""
     teacher = await get_teacher(current_user, db)
-    
+
     result = await db.execute(
         select(Lesson)
         .options(
@@ -229,10 +334,10 @@ async def get_lesson_attendance(
         .where(Lesson.id == lesson_id)
     )
     lesson = result.scalar_one_or_none()
-    
+
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     # Guruhdagi barcha talabalar
     result = await db.execute(
         select(Student)
@@ -241,13 +346,13 @@ async def get_lesson_attendance(
         .order_by(Student.student_id)
     )
     students = result.scalars().all()
-    
+
     # Davomat
     result = await db.execute(
         select(Attendance).where(Attendance.lesson_id == lesson_id)
     )
     attendances = {a.student_id: a for a in result.scalars().all()}
-    
+
     students_list = []
     for student in students:
         att = attendances.get(student.id)
@@ -258,7 +363,7 @@ async def get_lesson_attendance(
             "status": att.status if att else "absent",
             "marked_at": att.marked_at.isoformat() if att else None
         })
-    
+
     return {
         "lesson_id": lesson.id,
         "subject_name": lesson.schedule.subject.name,
@@ -281,20 +386,20 @@ async def mark_attendance_by_teacher(
 ):
     """O'qituvchi tomonidan davomat qo'yish"""
     teacher = await get_teacher(current_user, db)
-    
+
     result = await db.execute(
         select(Lesson)
         .options(selectinload(Lesson.schedule))
         .where(Lesson.id == lesson_id)
     )
     lesson = result.scalar_one_or_none()
-    
+
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
+
     if lesson.schedule.teacher_id != teacher.id:
         raise HTTPException(status_code=403, detail="Not your lesson")
-    
+
     # Mavjud davomat
     result = await db.execute(
         select(Attendance).where(
@@ -305,7 +410,7 @@ async def mark_attendance_by_teacher(
         )
     )
     attendance = result.scalar_one_or_none()
-    
+
     if attendance:
         attendance.status = status
         attendance.marked_by = "teacher"
@@ -317,7 +422,7 @@ async def mark_attendance_by_teacher(
             marked_by="teacher"
         )
         db.add(attendance)
-    
+
     await db.commit()
-    
+
     return {"success": True, "message": "Davomat saqlandi"}
