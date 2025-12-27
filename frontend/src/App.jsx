@@ -14,6 +14,9 @@ import TeacherLessonDetail from './pages/teacher/LessonDetail'
 import CreateLesson from './pages/teacher/CreateLesson'
 import AdminDashboard from './pages/admin/Dashboard'
 
+// Admin Telegram IDs (backend .env dagi ADMIN_IDS bilan bir xil bo'lishi kerak)
+const ADMIN_IDS = [6369838846]
+
 function AppRoutes() {
   const { user, loading, isRegistered } = useAuth()
 
@@ -30,6 +33,18 @@ function AppRoutes() {
           </p>
         </div>
       </div>
+    )
+  }
+
+  // Admin tekshirish - ro'yxatdan o'tmasdan admin panelga kirish
+  const isAdmin = ADMIN_IDS.includes(user.telegram_id)
+  if (isAdmin) {
+    return (
+      <Routes>
+        <Route path="/" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="*" element={<Navigate to="/admin" />} />
+      </Routes>
     )
   }
 
@@ -59,15 +74,6 @@ function AppRoutes() {
           <Route path="/teacher/create" element={<CreateLesson />} />
           <Route path="/teacher/lesson/:id" element={<TeacherLessonDetail />} />
           <Route path="*" element={<Navigate to="/teacher" />} />
-        </>
-      )}
-
-      {/* Admin Routes */}
-      {user?.role === 'admin' && (
-        <>
-          <Route path="/" element={<AdminDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="*" element={<Navigate to="/admin" />} />
         </>
       )}
 

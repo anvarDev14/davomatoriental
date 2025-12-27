@@ -3,7 +3,7 @@ Teacher API - O'qituvchilar uchun
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, delete
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta
 from typing import List, Optional
@@ -376,15 +376,15 @@ async def get_lesson_attendance(
     }
 
 
-@router.post("/lesson/{lesson_id}/mark")
-async def mark_attendance_by_teacher(
+@router.post("/lesson/{lesson_id}/mark/{student_id}")
+async def mark_student_attendance(
     lesson_id: int,
     student_id: int,
-    status: str = "present",
+    status: str = Query(default="present"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """O'qituvchi tomonidan davomat qo'yish"""
+    """Talaba davomatini belgilash"""
     teacher = await get_teacher(current_user, db)
 
     result = await db.execute(
@@ -395,10 +395,18 @@ async def mark_attendance_by_teacher(
     lesson = result.scalar_one_or_none()
 
     if not lesson:
-        raise HTTPException(status_code=404, detail="Lesson not found")
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
 
     if lesson.schedule.teacher_id != teacher.id:
-        raise HTTPException(status_code=403, detail="Not your lesson")
+        raise HTTPException(status_code=403, detail="Bu sizning darsingiz emas")
+
+    # Talaba mavjudligini tekshirish
+    result = await db.execute(
+        select(Student).where(Student.id == student_id)
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Talaba topilmadi")
 
     # Mavjud davomat
     result = await db.execute(
@@ -425,4 +433,52 @@ async def mark_attendance_by_teacher(
 
     await db.commit()
 
-    return {"success": True, "message": "Davomat saqlandi"}
+    return {"success": True, "message": f"Davomat saqlandi: {status}"}
+
+
+@router.delete("/lesson/{lesson_id}")
+async def delete_lesson(
+    lesson_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Darsni o'chirish"""
+    teacher = await get_teacher(current_user, db)
+
+    result = await db.execute(
+        select(Lesson)
+        .options(selectinload(Lesson.schedule))
+        .where(Lesson.id == lesson_id)
+    )
+    lesson = result.scalar_one_or_none()
+
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Dars topilmadi")
+
+    if lesson.schedule.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail="Bu sizning darsingiz emas")
+
+    # Avval attendance o'chirish
+    await db.execute(delete(Attendance).where(Attendance.lesson_id == lesson_id))
+
+    # Schedule ID ni saqlash
+    schedule_id = lesson.schedule_id
+
+    # Lesson o'chirish
+    await db.delete(lesson)
+
+    # Schedule o'chirish (agar boshqa lesson yo'q bo'lsa)
+    result = await db.execute(
+        select(Lesson).where(Lesson.schedule_id == schedule_id)
+    )
+    if not result.scalars().first():
+        result = await db.execute(
+            select(Schedule).where(Schedule.id == schedule_id)
+        )
+        schedule = result.scalar_one_or_none()
+        if schedule:
+            await db.delete(schedule)
+
+    await db.commit()
+
+    return {"success": True, "message": "Dars o'chirildi"}

@@ -43,6 +43,7 @@ export const teacherAPI = {
   openLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/open`),
   closeLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/close`),
   markAttendance: (lessonId, studentId, status) => api.post(`/teacher/lesson/${lessonId}/mark/${studentId}?status=${status}`),
+  deleteLesson: (lessonId) => api.delete(`/teacher/lesson/${lessonId}`),
   getSubjects: () => api.get('/teacher/subjects'),
   getGroups: () => api.get('/teacher/groups'),
   createLesson: (group_id, subject_id, room) => api.post(`/teacher/lesson/create?group_id=${group_id}&subject_id=${subject_id}${room ? '&room=' + room : ''}`),
