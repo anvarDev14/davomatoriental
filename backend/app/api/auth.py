@@ -23,6 +23,7 @@ from app.schemas.user import TelegramAuthData
 
 router = APIRouter(tags=["auth"])
 
+
 def verify_telegram_data(init_data: str) -> dict:
     """Telegram WebApp ma'lumotlarini tekshirish"""
     try:
@@ -68,8 +69,8 @@ def create_token(user_id: int) -> str:
 
 
 async def get_current_user(
-    authorization: str = Header(...),
-    db: AsyncSession = Depends(get_db)
+        authorization: str = Header(...),
+        db: AsyncSession = Depends(get_db)
 ) -> User:
     """Joriy foydalanuvchini olish"""
     if not authorization:
@@ -94,8 +95,8 @@ async def get_current_user(
 
 @router.post("/telegram")
 async def telegram_auth(
-    auth_data: TelegramAuthData,
-    db: AsyncSession = Depends(get_db)
+        auth_data: TelegramAuthData,
+        db: AsyncSession = Depends(get_db)
 ):
     """Telegram orqali autentifikatsiya"""
     telegram_user = verify_telegram_data(auth_data.init_data)
@@ -104,7 +105,7 @@ async def telegram_auth(
         raise HTTPException(status_code=401, detail="Telegram autentifikatsiya xatosi")
 
     telegram_id = telegram_user.get('id')
-    photo_url = telegram_user.get('photo_url')  # Avatar URL
+    photo_url = telegram_user.get('photo_url')
 
     result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
@@ -121,16 +122,12 @@ async def telegram_auth(
         await db.commit()
         await db.refresh(user)
     else:
-        # Avatar yangilash
         if photo_url and user.photo_url != photo_url:
             user.photo_url = photo_url
             await db.commit()
 
     token = create_token(user.id)
 
-    # ... qolgan kod
-
-    # Student yoki Teacher ma'lumotlarini olish
     result = await db.execute(
         select(Student).options(selectinload(Student.group)).where(Student.user_id == user.id)
     )
@@ -147,6 +144,8 @@ async def telegram_auth(
             "id": user.id,
             "telegram_id": user.telegram_id,
             "full_name": user.full_name,
+            "username": user.username,
+            "photo_url": user.photo_url,
             "role": user.role,
             "student": {
                 "id": student.id,
@@ -162,13 +161,13 @@ async def telegram_auth(
         }
     }
 
+
 @router.get("/me")
 async def get_me(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Joriy user ma'lumotlari"""
-    # Student ma'lumotlari
     result = await db.execute(
         select(Student)
         .options(selectinload(Student.group).selectinload(Group.direction))
@@ -176,7 +175,6 @@ async def get_me(
     )
     student = result.scalar_one_or_none()
 
-    # Teacher ma'lumotlari
     result = await db.execute(
         select(Teacher).where(Teacher.user_id == current_user.id)
     )
@@ -205,23 +203,61 @@ async def get_me(
         } if teacher else None
     }
 
+
+@router.get("/directions")
+async def get_directions(db: AsyncSession = Depends(get_db)):
+    """Barcha yo'nalishlar"""
+    result = await db.execute(select(Direction).order_by(Direction.name))
+    directions = result.scalars().all()
+
+    return [
+        {
+            "id": d.id,
+            "name": d.name,
+            "short_name": d.short_name
+        }
+        for d in directions
+    ]
+
+
+@router.get("/groups/{direction_id}")
+async def get_groups_by_direction(
+        direction_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    """Yo'nalish bo'yicha guruhlar"""
+    result = await db.execute(
+        select(Group)
+        .where(Group.direction_id == direction_id)
+        .order_by(Group.name)
+    )
+    groups = result.scalars().all()
+
+    return [
+        {
+            "id": g.id,
+            "name": g.name,
+            "course": g.course
+        }
+        for g in groups
+    ]
+
+
 @router.post("/register/student")
 async def register_student(
-    group_id: int = Query(..., description="Guruh ID"),
-    full_name: str = Query(..., description="To'liq ism"),
-    student_id: Optional[str] = Query(None, description="Talaba ID"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        group_id: int = Query(..., description="Guruh ID"),
+        full_name: str = Query(..., description="To'liq ism"),
+        student_id: Optional[str] = Query(None, description="Talaba ID"),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Talaba ro'yxatdan o'tishi"""
-    # Allaqachon ro'yxatdan o'tganmi?
     result = await db.execute(
         select(Student).where(Student.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Siz allaqachon talaba sifatida ro'yxatdan o'tgansiz")
 
-    # User nomini yangilash
     current_user.full_name = full_name
     current_user.role = 'student'
 
@@ -238,21 +274,19 @@ async def register_student(
 
 @router.post("/register/teacher")
 async def register_teacher(
-    full_name: str = Query(..., description="To'liq ism"),
-    department: str = Query(..., description="Kafedra"),
-    employee_id: Optional[str] = Query(None, description="Xodim ID"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        full_name: str = Query(..., description="To'liq ism"),
+        department: str = Query(..., description="Kafedra"),
+        employee_id: Optional[str] = Query(None, description="Xodim ID"),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """O'qituvchi ro'yxatdan o'tishi"""
-    # Allaqachon ro'yxatdan o'tganmi?
     result = await db.execute(
         select(Teacher).where(Teacher.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Siz allaqachon o'qituvchi sifatida ro'yxatdan o'tgansiz")
 
-    # User nomini yangilash
     current_user.full_name = full_name
     current_user.role = 'teacher'
 
