@@ -2,9 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { adminAPI } from '../../api'
 import Header from '../../components/Header'
 import Loader from '../../components/Loader'
-import { Users, GraduationCap, BookOpen, Calendar, Download, RefreshCw } from 'lucide-react'
+import { useTelegram } from '../../hooks/useTelegram'
+import {
+  Users, GraduationCap, BookOpen, Calendar, Download, RefreshCw,
+  Plus, Trash2, Settings, FolderOpen, X
+} from 'lucide-react'
 
 function AdminDashboard() {
+  const { showAlert, showConfirm, hapticFeedback } = useTelegram()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -21,11 +26,20 @@ function AdminDashboard() {
   const [students, setStudents] = useState([])
   const [teachers, setTeachers] = useState([])
   const [groups, setGroups] = useState([])
+  const [directions, setDirections] = useState([])
+  const [subjects, setSubjects] = useState([])
   const [attendanceReport, setAttendanceReport] = useState([])
+
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [modalType, setModalType] = useState('') // 'direction', 'group', 'subject'
+  const [formData, setFormData] = useState({})
 
   useEffect(() => {
     loadStats()
     loadGroups()
+    loadDirections()
+    loadSubjects()
   }, [])
 
   const loadStats = async () => {
@@ -43,6 +57,24 @@ function AdminDashboard() {
     try {
       const { data } = await adminAPI.getGroups()
       setGroups(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadDirections = async () => {
+    try {
+      const { data } = await adminAPI.getDirections()
+      setDirections(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadSubjects = async () => {
+    try {
+      const { data } = await adminAPI.getSubjects()
+      setSubjects(data)
     } catch (err) {
       console.error(err)
     }
@@ -79,8 +111,6 @@ function AdminDashboard() {
     setExportLoading(true)
     try {
       const response = await adminAPI.exportExcel(filters)
-
-      // Download file
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
@@ -88,9 +118,10 @@ function AdminDashboard() {
       document.body.appendChild(link)
       link.click()
       link.remove()
+      hapticFeedback('success')
     } catch (err) {
       console.error(err)
-      alert('Export xatosi')
+      showAlert('Export xatosi')
     } finally {
       setExportLoading(false)
     }
@@ -103,6 +134,99 @@ function AdminDashboard() {
     if (tab === 'reports') loadAttendanceReport()
   }
 
+  // ========== CRUD OPERATIONS ==========
+
+  const openAddModal = (type) => {
+    setModalType(type)
+    setFormData({})
+    setShowAddModal(true)
+  }
+
+  const handleAddSubmit = async () => {
+    hapticFeedback('medium')
+    try {
+      if (modalType === 'direction') {
+        if (!formData.name) {
+          showAlert("Yo'nalish nomini kiriting!")
+          return
+        }
+        await adminAPI.createDirection(formData)
+        showAlert("✅ Yo'nalish qo'shildi!")
+        loadDirections()
+      } else if (modalType === 'group') {
+        if (!formData.name || !formData.direction_id) {
+          showAlert("Barcha maydonlarni to'ldiring!")
+          return
+        }
+        await adminAPI.createGroup(formData)
+        showAlert("✅ Guruh qo'shildi!")
+        loadGroups()
+      } else if (modalType === 'subject') {
+        if (!formData.name) {
+          showAlert("Fan nomini kiriting!")
+          return
+        }
+        await adminAPI.createSubject(formData)
+        showAlert("✅ Fan qo'shildi!")
+        loadSubjects()
+      }
+      setShowAddModal(false)
+      hapticFeedback('success')
+    } catch (err) {
+      console.error(err)
+      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+    }
+  }
+
+  const handleDeleteDirection = async (id) => {
+    if (!window.confirm("Yo'nalishni o'chirishni tasdiqlaysizmi?")) return
+    try {
+      await adminAPI.deleteDirection(id)
+      showAlert("✅ Yo'nalish o'chirildi!")
+      loadDirections()
+      hapticFeedback('success')
+    } catch (err) {
+      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+    }
+  }
+
+  const handleDeleteGroup = async (id) => {
+    if (!window.confirm("Guruhni o'chirishni tasdiqlaysizmi?")) return
+    try {
+      await adminAPI.deleteGroup(id)
+      showAlert("✅ Guruh o'chirildi!")
+      loadGroups()
+      hapticFeedback('success')
+    } catch (err) {
+      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+    }
+  }
+
+  const handleDeleteSubject = async (id) => {
+    if (!window.confirm("Fanni o'chirishni tasdiqlaysizmi?")) return
+    try {
+      await adminAPI.deleteSubject(id)
+      showAlert("✅ Fan o'chirildi!")
+      loadSubjects()
+      hapticFeedback('success')
+    } catch (err) {
+      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+    }
+  }
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Foydalanuvchini o'chirishni tasdiqlaysizmi?")) return
+    try {
+      await adminAPI.deleteUser(userId)
+      showAlert("✅ Foydalanuvchi o'chirildi!")
+      loadStudents()
+      loadTeachers()
+      hapticFeedback('success')
+    } catch (err) {
+      showAlert(err.response?.data?.detail || 'Xatolik yuz berdi')
+    }
+  }
+
   if (loading) return <Loader />
 
   return (
@@ -113,6 +237,7 @@ function AdminDashboard() {
       <div className="flex overflow-x-auto gap-2 px-4 py-2 border-b border-telegram-secondary">
         {[
           { id: 'dashboard', label: '📊 Dashboard' },
+          { id: 'settings', label: '⚙️ Sozlamalar' },
           { id: 'students', label: '👨‍🎓 Talabalar' },
           { id: 'teachers', label: '👨‍🏫 O\'qituvchilar' },
           { id: 'reports', label: '📋 Hisobotlar' }
@@ -120,7 +245,7 @@ function AdminDashboard() {
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
-            className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium ${
+            className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all ${
               activeTab === tab.id
                 ? 'bg-telegram-button text-telegram-buttonText'
                 : 'bg-telegram-secondary'
@@ -158,6 +283,110 @@ function AdminDashboard() {
           </div>
         )}
 
+        {/* Settings Tab - YO'NALISH, GURUH, FAN BOSHQARUVI */}
+        {activeTab === 'settings' && (
+          <div className="space-y-4">
+            {/* Yo'nalishlar */}
+            <div className="card">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <FolderOpen size={18} className="text-blue-500" />
+                  Yo'nalishlar ({directions.length})
+                </h3>
+                <button
+                  onClick={() => openAddModal('direction')}
+                  className="bg-telegram-button text-telegram-buttonText p-2 rounded-full"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {directions.map(d => (
+                  <div key={d.id} className="flex justify-between items-center py-2 border-b border-telegram-secondary last:border-0">
+                    <span className="text-sm">{d.name}</span>
+                    <button
+                      onClick={() => handleDeleteDirection(d.id)}
+                      className="text-red-500 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {directions.length === 0 && (
+                  <p className="text-center text-telegram-hint text-sm py-2">Yo'nalishlar yo'q</p>
+                )}
+              </div>
+            </div>
+
+            {/* Guruhlar */}
+            <div className="card">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Users size={18} className="text-green-500" />
+                  Guruhlar ({groups.length})
+                </h3>
+                <button
+                  onClick={() => openAddModal('group')}
+                  className="bg-telegram-button text-telegram-buttonText p-2 rounded-full"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {groups.map(g => (
+                  <div key={g.id} className="flex justify-between items-center py-2 border-b border-telegram-secondary last:border-0">
+                    <div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <span className="text-xs text-telegram-hint ml-2">{g.course}-kurs</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteGroup(g.id)}
+                      className="text-red-500 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {groups.length === 0 && (
+                  <p className="text-center text-telegram-hint text-sm py-2">Guruhlar yo'q</p>
+                )}
+              </div>
+            </div>
+
+            {/* Fanlar */}
+            <div className="card">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <BookOpen size={18} className="text-purple-500" />
+                  Fanlar ({subjects.length})
+                </h3>
+                <button
+                  onClick={() => openAddModal('subject')}
+                  className="bg-telegram-button text-telegram-buttonText p-2 rounded-full"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {subjects.map(s => (
+                  <div key={s.id} className="flex justify-between items-center py-2 border-b border-telegram-secondary last:border-0">
+                    <span className="text-sm">{s.name}</span>
+                    <button
+                      onClick={() => handleDeleteSubject(s.id)}
+                      className="text-red-500 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {subjects.length === 0 && (
+                  <p className="text-center text-telegram-hint text-sm py-2">Fanlar yo'q</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Students Tab */}
         {activeTab === 'students' && (
           <div className="space-y-3">
@@ -168,14 +397,25 @@ function AdminDashboard() {
               </button>
             </div>
             {students.map(s => (
-              <div key={s.id} className="card">
-                <p className="font-medium">{s.full_name}</p>
-                <p className="text-sm text-telegram-hint">
-                  {s.group_name} • {s.direction_name}
-                </p>
-                <p className="text-xs text-telegram-hint">ID: {s.student_id || '—'}</p>
+              <div key={s.id} className="card flex justify-between items-start">
+                <div>
+                  <p className="font-medium">{s.full_name}</p>
+                  <p className="text-sm text-telegram-hint">
+                    {s.group_name} • {s.direction_name}
+                  </p>
+                  <p className="text-xs text-telegram-hint">ID: {s.student_id || '—'}</p>
+                </div>
+                <button
+                  onClick={() => handleDeleteUser(s.user_id)}
+                  className="text-red-500 p-1"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             ))}
+            {students.length === 0 && (
+              <p className="text-center text-telegram-hint py-4">Talabalar yo'q</p>
+            )}
           </div>
         )}
 
@@ -189,13 +429,24 @@ function AdminDashboard() {
               </button>
             </div>
             {teachers.map(t => (
-              <div key={t.id} className="card">
-                <p className="font-medium">{t.full_name}</p>
-                <p className="text-sm text-telegram-hint">
-                  {t.department} • {t.employee_id}
-                </p>
+              <div key={t.id} className="card flex justify-between items-start">
+                <div>
+                  <p className="font-medium">{t.full_name}</p>
+                  <p className="text-sm text-telegram-hint">
+                    {t.department} • {t.employee_id}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDeleteUser(t.user_id)}
+                  className="text-red-500 p-1"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             ))}
+            {teachers.length === 0 && (
+              <p className="text-center text-telegram-hint py-4">O'qituvchilar yo'q</p>
+            )}
           </div>
         )}
 
@@ -286,10 +537,113 @@ function AdminDashboard() {
                   </div>
                 </div>
               ))}
+              {attendanceReport.length === 0 && (
+                <p className="text-center text-telegram-hint py-4">Natijalar yo'q</p>
+              )}
             </div>
           </div>
         )}
       </main>
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-telegram-bg rounded-2xl p-4 w-full max-w-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold">
+                {modalType === 'direction' && "Yo'nalish qo'shish"}
+                {modalType === 'group' && "Guruh qo'shish"}
+                {modalType === 'subject' && "Fan qo'shish"}
+              </h3>
+              <button onClick={() => setShowAddModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Direction Form */}
+              {modalType === 'direction' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Yo'nalish nomi"
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Qisqa nomi (ixtiyoriy)"
+                    value={formData.short_name || ''}
+                    onChange={(e) => setFormData({...formData, short_name: e.target.value})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  />
+                </>
+              )}
+
+              {/* Group Form */}
+              {modalType === 'group' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Guruh nomi (masalan: IT-101)"
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  />
+                  <select
+                    value={formData.direction_id || ''}
+                    onChange={(e) => setFormData({...formData, direction_id: e.target.value})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  >
+                    <option value="">Yo'nalishni tanlang</option>
+                    {directions.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={formData.course || 1}
+                    onChange={(e) => setFormData({...formData, course: parseInt(e.target.value)})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  >
+                    <option value={1}>1-kurs</option>
+                    <option value={2}>2-kurs</option>
+                    <option value={3}>3-kurs</option>
+                    <option value={4}>4-kurs</option>
+                  </select>
+                </>
+              )}
+
+              {/* Subject Form */}
+              {modalType === 'subject' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Fan nomi"
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Qisqa nomi (ixtiyoriy)"
+                    value={formData.short_name || ''}
+                    onChange={(e) => setFormData({...formData, short_name: e.target.value})}
+                    className="w-full p-3 bg-telegram-secondary rounded-xl"
+                  />
+                </>
+              )}
+
+              <button
+                onClick={handleAddSubmit}
+                className="w-full btn-primary"
+              >
+                Qo'shish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

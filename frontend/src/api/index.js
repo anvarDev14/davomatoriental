@@ -61,19 +61,27 @@ export const attendanceAPI = {
 }
 
 // Admin API
+// Admin API
 export const adminAPI = {
   getStats: () => api.get('/admin/stats'),
   getStudents: () => api.get('/admin/students'),
   getTeachers: () => api.get('/admin/teachers'),
   getGroups: () => api.get('/admin/groups'),
+  getDirections: () => api.get('/admin/directions'),
+  getSubjects: () => api.get('/admin/subjects'),
   getTodayLessons: () => api.get('/admin/lessons/today'),
   getAttendanceReport: (params) => api.get('/admin/attendance/report', { params }),
   exportExcel: (params) => api.get('/admin/attendance/export', {
     params,
     responseType: 'blob'
   }),
-  createGroup: (data) => api.post(`/admin/groups/create?name=${data.name}&direction_id=${data.direction_id}&course=${data.course}`),
-  createSubject: (data) => api.post(`/admin/subjects/create?name=${data.name}${data.short_name ? '&short_name=' + data.short_name : ''}`),
+  // CRUD
+  createDirection: (data) => api.post(`/admin/directions/create?name=${encodeURIComponent(data.name)}${data.short_name ? '&short_name=' + encodeURIComponent(data.short_name) : ''}`),
+  deleteDirection: (id) => api.delete(`/admin/directions/${id}`),
+  createGroup: (data) => api.post(`/admin/groups/create?name=${encodeURIComponent(data.name)}&direction_id=${data.direction_id}&course=${data.course || 1}`),
+  deleteGroup: (id) => api.delete(`/admin/groups/${id}`),
+  createSubject: (data) => api.post(`/admin/subjects/create?name=${encodeURIComponent(data.name)}${data.short_name ? '&short_name=' + encodeURIComponent(data.short_name) : ''}`),
+  deleteSubject: (id) => api.delete(`/admin/subjects/${id}`),
   deleteUser: (userId) => api.delete(`/admin/users/${userId}`)
 }
 
