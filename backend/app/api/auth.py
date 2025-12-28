@@ -162,20 +162,21 @@ async def telegram_auth(
         }
     }
 
-
 @router.get("/me")
 async def get_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Joriy user ma'lumotlari"""
+    # Student ma'lumotlari
     result = await db.execute(
         select(Student)
-        .options(selectinload(Student.group))
+        .options(selectinload(Student.group).selectinload(Group.direction))
         .where(Student.user_id == current_user.id)
     )
     student = result.scalar_one_or_none()
 
+    # Teacher ma'lumotlari
     result = await db.execute(
         select(Teacher).where(Teacher.user_id == current_user.id)
     )
@@ -189,11 +190,13 @@ async def get_me(
         "phone": current_user.phone,
         "role": current_user.role,
         "is_active": current_user.is_active,
+        "photo_url": current_user.photo_url,
         "student": {
             "id": student.id,
             "group_id": student.group_id,
             "student_id": student.student_id,
-            "group_name": student.group.name if student.group else None
+            "group_name": student.group.name if student.group else None,
+            "direction_name": student.group.direction.name if student.group and student.group.direction else None
         } if student else None,
         "teacher": {
             "id": teacher.id,
@@ -201,27 +204,6 @@ async def get_me(
             "employee_id": teacher.employee_id
         } if teacher else None
     }
-
-
-@router.get("/directions")
-async def get_directions(db: AsyncSession = Depends(get_db)):
-    """Yo'nalishlar ro'yxati"""
-    result = await db.execute(select(Direction).order_by(Direction.name))
-    directions = result.scalars().all()
-    return [{"id": d.id, "name": d.name, "short_name": d.short_name} for d in directions]
-
-
-@router.get("/groups/{direction_id}")
-async def get_groups(direction_id: int, db: AsyncSession = Depends(get_db)):
-    """Yo'nalish bo'yicha guruhlar"""
-    result = await db.execute(
-        select(Group)
-        .where(Group.direction_id == direction_id)
-        .order_by(Group.name)
-    )
-    groups = result.scalars().all()
-    return [{"id": g.id, "name": g.name, "direction_id": g.direction_id, "course": g.course} for g in groups]
-
 
 @router.post("/register/student")
 async def register_student(

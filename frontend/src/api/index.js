@@ -11,7 +11,11 @@ const api = axios.create({
 
 // Token qo'shish
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  // Telegram user ID olish
+  const tg = window.Telegram?.WebApp
+  const telegramId = tg?.initDataUnsafe?.user?.id || 'default'
+  const token = localStorage.getItem(`token_${telegramId}`)
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

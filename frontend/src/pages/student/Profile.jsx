@@ -42,9 +42,25 @@ function StudentProfile() {
       <main className="p-4 space-y-4">
         {/* Profile Card */}
         <div className="card text-center">
-          <div className="w-20 h-20 bg-telegram-button rounded-full flex items-center justify-center text-telegram-buttonText text-3xl font-bold mx-auto mb-3">
+          {/* Avatar - Telegram rasmini ko'rsatish */}
+          {user.photo_url ? (
+            <img
+              src={user.photo_url}
+              alt={user.full_name}
+              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-telegram-button"
+              onError={(e) => {
+                // Rasm yuklanmasa, harfni ko'rsatish
+                e.target.style.display = 'none'
+                e.target.nextSibling.style.display = 'flex'
+              }}
+            />
+          ) : null}
+          <div
+            className={`w-20 h-20 bg-telegram-button rounded-full flex items-center justify-center text-telegram-buttonText text-3xl font-bold mx-auto mb-3 ${user.photo_url ? 'hidden' : ''}`}
+          >
             {user.full_name?.charAt(0) || 'U'}
           </div>
+
           <h2 className="text-xl font-bold">{user.full_name}</h2>
           {user.username && (
             <p className="text-telegram-hint">@{user.username}</p>
