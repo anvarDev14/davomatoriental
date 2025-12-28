@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, delete
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta
 from typing import Optional
@@ -20,7 +20,7 @@ from app.models.lesson import Lesson
 from app.models.attendance import Attendance
 from app.api.auth import get_current_user
 
-router = APIRouter( tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 
 async def check_admin(current_user: User, db: AsyncSession):
@@ -33,19 +33,18 @@ async def check_admin(current_user: User, db: AsyncSession):
 
 @router.get("/stats")
 async def get_stats(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Umumiy statistika"""
     await check_admin(current_user, db)
-    
+
     students_count = await db.scalar(select(func.count(Student.id)))
     teachers_count = await db.scalar(select(func.count(Teacher.id)))
     groups_count = await db.scalar(select(func.count(Group.id)))
     lessons_count = await db.scalar(select(func.count(Lesson.id)))
     attendance_count = await db.scalar(select(func.count(Attendance.id)))
-    
-    # Bugungi statistika
+
     today = date.today()
     today_lessons = await db.scalar(
         select(func.count(Lesson.id)).where(Lesson.date == today)
@@ -55,7 +54,7 @@ async def get_stats(
         .join(Lesson)
         .where(Lesson.date == today)
     )
-    
+
     return {
         "total_students": students_count or 0,
         "total_teachers": teachers_count or 0,
@@ -69,12 +68,12 @@ async def get_stats(
 
 @router.get("/students")
 async def get_all_students(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Barcha talabalar"""
     await check_admin(current_user, db)
-    
+
     result = await db.execute(
         select(Student)
         .options(
@@ -84,11 +83,12 @@ async def get_all_students(
         .order_by(Student.id)
     )
     students = result.scalars().all()
-    
+
     return [{
         "id": s.id,
         "user_id": s.user_id,
         "full_name": s.user.full_name if s.user else None,
+        "username": s.user.username if s.user else None,
         "student_id": s.student_id,
         "group_name": s.group.name if s.group else None,
         "direction_name": s.group.direction.name if s.group and s.group.direction else None,
@@ -98,23 +98,24 @@ async def get_all_students(
 
 @router.get("/teachers")
 async def get_all_teachers(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Barcha o'qituvchilar"""
     await check_admin(current_user, db)
-    
+
     result = await db.execute(
         select(Teacher)
         .options(selectinload(Teacher.user))
         .order_by(Teacher.id)
     )
     teachers = result.scalars().all()
-    
+
     return [{
         "id": t.id,
         "user_id": t.user_id,
         "full_name": t.user.full_name if t.user else None,
+        "username": t.user.username if t.user else None,
         "employee_id": t.employee_id,
         "department": t.department,
         "created_at": t.created_at.isoformat() if t.created_at else None
@@ -123,19 +124,19 @@ async def get_all_teachers(
 
 @router.get("/groups")
 async def get_all_groups(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Barcha guruhlar"""
     await check_admin(current_user, db)
-    
+
     result = await db.execute(
         select(Group)
         .options(selectinload(Group.direction))
         .order_by(Group.name)
     )
     groups = result.scalars().all()
-    
+
     return [{
         "id": g.id,
         "name": g.name,
@@ -145,33 +146,223 @@ async def get_all_groups(
     } for g in groups]
 
 
+# ============ YO'NALISHLAR (DIRECTIONS) ============
+
+@router.get("/directions")
+async def get_all_directions(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Barcha yo'nalishlar"""
+    await check_admin(current_user, db)
+
+    result = await db.execute(select(Direction).order_by(Direction.name))
+    directions = result.scalars().all()
+
+    return [{
+        "id": d.id,
+        "name": d.name,
+        "short_name": d.short_name
+    } for d in directions]
+
+
+@router.post("/directions/create")
+async def create_direction(
+        name: str = Query(...),
+        short_name: Optional[str] = Query(None),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Yangi yo'nalish qo'shish"""
+    await check_admin(current_user, db)
+
+    direction = Direction(name=name, short_name=short_name)
+    db.add(direction)
+    await db.commit()
+    await db.refresh(direction)
+
+    return {"success": True, "message": "Yo'nalish qo'shildi", "id": direction.id}
+
+
+@router.delete("/directions/{direction_id}")
+async def delete_direction(
+        direction_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Yo'nalishni o'chirish"""
+    await check_admin(current_user, db)
+
+    result = await db.execute(select(Direction).where(Direction.id == direction_id))
+    direction = result.scalar_one_or_none()
+
+    if not direction:
+        raise HTTPException(status_code=404, detail="Yo'nalish topilmadi")
+
+    # Guruhlar bormi tekshirish
+    groups = await db.execute(select(Group).where(Group.direction_id == direction_id))
+    if groups.scalars().first():
+        raise HTTPException(status_code=400, detail="Bu yo'nalishda guruhlar bor, avval ularni o'chiring")
+
+    await db.delete(direction)
+    await db.commit()
+
+    return {"success": True, "message": "Yo'nalish o'chirildi"}
+
+
+# ============ GURUHLAR (GROUPS) ============
+
+@router.post("/groups/create")
+async def create_group(
+        name: str = Query(...),
+        direction_id: int = Query(...),
+        course: int = Query(default=1),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Yangi guruh qo'shish"""
+    await check_admin(current_user, db)
+
+    group = Group(name=name, direction_id=direction_id, course=course)
+    db.add(group)
+    await db.commit()
+    await db.refresh(group)
+
+    return {"success": True, "message": "Guruh qo'shildi", "id": group.id}
+
+
+@router.delete("/groups/{group_id}")
+async def delete_group(
+        group_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Guruhni o'chirish"""
+    await check_admin(current_user, db)
+
+    result = await db.execute(select(Group).where(Group.id == group_id))
+    group = result.scalar_one_or_none()
+
+    if not group:
+        raise HTTPException(status_code=404, detail="Guruh topilmadi")
+
+    # Talabalar bormi tekshirish
+    students = await db.execute(select(Student).where(Student.group_id == group_id))
+    if students.scalars().first():
+        raise HTTPException(status_code=400, detail="Bu guruhda talabalar bor, avval ularni o'chiring")
+
+    await db.delete(group)
+    await db.commit()
+
+    return {"success": True, "message": "Guruh o'chirildi"}
+
+
+# ============ FANLAR (SUBJECTS) ============
+
+@router.get("/subjects")
+async def get_all_subjects(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Barcha fanlar"""
+    await check_admin(current_user, db)
+
+    result = await db.execute(select(Subject).order_by(Subject.name))
+    subjects = result.scalars().all()
+
+    return [{
+        "id": s.id,
+        "name": s.name,
+        "short_name": s.short_name
+    } for s in subjects]
+
+
+@router.post("/subjects/create")
+async def create_subject(
+        name: str = Query(...),
+        short_name: Optional[str] = Query(None),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Yangi fan qo'shish"""
+    await check_admin(current_user, db)
+
+    subject = Subject(name=name, short_name=short_name)
+    db.add(subject)
+    await db.commit()
+    await db.refresh(subject)
+
+    return {"success": True, "message": "Fan qo'shildi", "id": subject.id}
+
+
+@router.delete("/subjects/{subject_id}")
+async def delete_subject(
+        subject_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Fanni o'chirish"""
+    await check_admin(current_user, db)
+
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+
+    if not subject:
+        raise HTTPException(status_code=404, detail="Fan topilmadi")
+
+    await db.delete(subject)
+    await db.commit()
+
+    return {"success": True, "message": "Fan o'chirildi"}
+
+
+# ============ DAVOMAT HISOBOTI ============
+
 @router.get("/attendance/report")
 async def get_attendance_report(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    group_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        start_date: Optional[str] = Query(None),
+        end_date: Optional[str] = Query(None),
+        group_id: Optional[int] = Query(None),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Davomat hisoboti"""
     await check_admin(current_user, db)
-    
+
     query = select(Attendance).options(
         selectinload(Attendance.student).selectinload(Student.user),
         selectinload(Attendance.student).selectinload(Student.group),
         selectinload(Attendance.lesson).selectinload(Lesson.schedule).selectinload(Schedule.subject)
     )
-    
-    if start_date:
-        query = query.join(Lesson).where(Lesson.date >= date.fromisoformat(start_date))
-    if end_date:
-        query = query.join(Lesson).where(Lesson.date <= date.fromisoformat(end_date))
+
+    # Filter conditions
+    conditions = []
+
+    if start_date and start_date.strip():
+        try:
+            start = date.fromisoformat(start_date)
+            conditions.append(Lesson.date >= start)
+        except:
+            pass
+
+    if end_date and end_date.strip():
+        try:
+            end = date.fromisoformat(end_date)
+            conditions.append(Lesson.date <= end)
+        except:
+            pass
+
     if group_id:
-        query = query.join(Student).where(Student.group_id == group_id)
-    
+        conditions.append(Student.group_id == group_id)
+
+    if conditions:
+        query = query.join(Attendance.lesson).join(Attendance.student)
+        for cond in conditions:
+            query = query.where(cond)
+
     result = await db.execute(query.order_by(Attendance.id.desc()).limit(500))
     attendances = result.scalars().all()
-    
+
     return [{
         "id": a.id,
         "student_name": a.student.user.full_name if a.student and a.student.user else None,
@@ -186,75 +377,96 @@ async def get_attendance_report(
 
 @router.get("/attendance/export")
 async def export_attendance_excel(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    group_id: Optional[int] = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        start_date: Optional[str] = Query(None),
+        end_date: Optional[str] = Query(None),
+        group_id: Optional[int] = Query(None),
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Davomatni Excel formatda eksport qilish"""
     await check_admin(current_user, db)
-    
-    import openpyxl
-    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-    
+
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl kutubxonasi o'rnatilmagan")
+
     # Ma'lumotlarni olish
     query = select(Attendance).options(
         selectinload(Attendance.student).selectinload(Student.user),
         selectinload(Attendance.student).selectinload(Student.group),
         selectinload(Attendance.lesson).selectinload(Lesson.schedule).selectinload(Schedule.subject)
     )
-    
-    if start_date:
-        start = date.fromisoformat(start_date)
-        query = query.join(Lesson).where(Lesson.date >= start)
-    if end_date:
-        end = date.fromisoformat(end_date)
-        query = query.join(Lesson).where(Lesson.date <= end)
+
+    # Filter conditions
+    conditions = []
+
+    if start_date and start_date.strip():
+        try:
+            start = date.fromisoformat(start_date)
+            conditions.append(Lesson.date >= start)
+        except:
+            pass
+
+    if end_date and end_date.strip():
+        try:
+            end = date.fromisoformat(end_date)
+            conditions.append(Lesson.date <= end)
+        except:
+            pass
+
     if group_id:
-        query = query.join(Student).where(Student.group_id == group_id)
-    
+        conditions.append(Student.group_id == group_id)
+
+    if conditions:
+        query = query.join(Attendance.lesson).join(Attendance.student)
+        for cond in conditions:
+            query = query.where(cond)
+
     result = await db.execute(query.order_by(Attendance.id.desc()))
     attendances = result.scalars().all()
-    
+
     # Excel yaratish
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Davomat"
-    
+
     # Sarlavhalar
     headers = ["#", "Talaba", "Talaba ID", "Guruh", "Fan", "Sana", "Status", "Vaqt"]
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-    
+
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center")
-    
+
     # Ma'lumotlar
     status_colors = {
         "present": "C6EFCE",
-        "late": "FFEB9C", 
+        "late": "FFEB9C",
         "absent": "FFC7CE"
     }
-    
+
     for row, a in enumerate(attendances, 2):
-        ws.cell(row=row, column=1, value=row-1)
+        ws.cell(row=row, column=1, value=row - 1)
         ws.cell(row=row, column=2, value=a.student.user.full_name if a.student and a.student.user else "-")
         ws.cell(row=row, column=3, value=a.student.student_id if a.student else "-")
         ws.cell(row=row, column=4, value=a.student.group.name if a.student and a.student.group else "-")
-        ws.cell(row=row, column=5, value=a.lesson.schedule.subject.name if a.lesson and a.lesson.schedule and a.lesson.schedule.subject else "-")
+        ws.cell(row=row, column=5,
+                value=a.lesson.schedule.subject.name if a.lesson and a.lesson.schedule and a.lesson.schedule.subject else "-")
         ws.cell(row=row, column=6, value=a.lesson.date.isoformat() if a.lesson else "-")
-        
+
         status_cell = ws.cell(row=row, column=7, value=a.status)
         if a.status in status_colors:
-            status_cell.fill = PatternFill(start_color=status_colors[a.status], end_color=status_colors[a.status], fill_type="solid")
-        
+            status_cell.fill = PatternFill(start_color=status_colors[a.status], end_color=status_colors[a.status],
+                                           fill_type="solid")
+
         ws.cell(row=row, column=8, value=a.marked_at.strftime("%H:%M") if a.marked_at else "-")
-    
-    # Ustun kengliklarini sozlash
+
+    # Ustun kengliklari
     ws.column_dimensions['A'].width = 5
     ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 12
@@ -263,14 +475,14 @@ async def export_attendance_excel(
     ws.column_dimensions['F'].width = 12
     ws.column_dimensions['G'].width = 10
     ws.column_dimensions['H'].width = 10
-    
+
     # Faylni saqlash
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
-    
+
     filename = f"davomat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    
+
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -280,14 +492,14 @@ async def export_attendance_excel(
 
 @router.get("/lessons/today")
 async def get_today_lessons(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Bugungi darslar"""
     await check_admin(current_user, db)
-    
+
     today = date.today()
-    
+
     result = await db.execute(
         select(Lesson)
         .options(
@@ -299,7 +511,7 @@ async def get_today_lessons(
         .order_by(Lesson.id)
     )
     lessons = result.scalars().all()
-    
+
     return [{
         "id": l.id,
         "subject_name": l.schedule.subject.name if l.schedule and l.schedule.subject else None,
@@ -311,57 +523,26 @@ async def get_today_lessons(
     } for l in lessons]
 
 
-@router.post("/groups/create")
-async def create_group(
-    name: str,
-    direction_id: int,
-    course: int = 1,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Yangi guruh qo'shish"""
-    await check_admin(current_user, db)
-    
-    group = Group(name=name, direction_id=direction_id, course=course)
-    db.add(group)
-    await db.commit()
-    
-    return {"success": True, "message": "Guruh qo'shildi", "id": group.id}
-
-
-@router.post("/subjects/create")
-async def create_subject(
-    name: str,
-    short_name: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Yangi fan qo'shish"""
-    await check_admin(current_user, db)
-    
-    subject = Subject(name=name, short_name=short_name)
-    db.add(subject)
-    await db.commit()
-    
-    return {"success": True, "message": "Fan qo'shildi", "id": subject.id}
-
-
 @router.delete("/users/{user_id}")
 async def delete_user(
-    user_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+        user_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
 ):
     """Foydalanuvchini o'chirish"""
     await check_admin(current_user, db)
-    
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User topilmadi")
-    
+
+    # Student yoki Teacher o'chirish
+    await db.execute(delete(Student).where(Student.user_id == user_id))
+    await db.execute(delete(Teacher).where(Teacher.user_id == user_id))
+
     await db.delete(user)
     await db.commit()
-    
+
     return {"success": True, "message": "User o'chirildi"}

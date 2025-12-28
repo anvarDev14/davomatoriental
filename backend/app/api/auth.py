@@ -104,6 +104,7 @@ async def telegram_auth(
         raise HTTPException(status_code=401, detail="Telegram autentifikatsiya xatosi")
 
     telegram_id = telegram_user.get('id')
+    photo_url = telegram_user.get('photo_url')  # Avatar URL
 
     result = await db.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
@@ -113,13 +114,21 @@ async def telegram_auth(
             telegram_id=telegram_id,
             full_name=f"{telegram_user.get('first_name', '')} {telegram_user.get('last_name', '')}".strip(),
             username=telegram_user.get('username'),
+            photo_url=photo_url,
             role='student'
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
+    else:
+        # Avatar yangilash
+        if photo_url and user.photo_url != photo_url:
+            user.photo_url = photo_url
+            await db.commit()
 
     token = create_token(user.id)
+
+    # ... qolgan kod
 
     # Student yoki Teacher ma'lumotlarini olish
     result = await db.execute(
