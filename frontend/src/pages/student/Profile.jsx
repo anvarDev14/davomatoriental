@@ -5,14 +5,17 @@ import Header from '../../components/Header'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
 import { useTelegram } from '../../hooks/useTelegram'
-import { User, Phone, GraduationCap, Users, History, ChevronRight } from 'lucide-react'
+import { User, Phone, GraduationCap, Users, History } from 'lucide-react'
 
 function StudentProfile() {
   const { user } = useAuth()
-  const { close } = useTelegram()
+  const { tg } = useTelegram()
   const [profile, setProfile] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Telegram'dan to'g'ridan-to'g'ri avatar olish
+  const avatarUrl = tg?.initDataUnsafe?.user?.photo_url || user?.photo_url
 
   useEffect(() => {
     loadData()
@@ -25,7 +28,7 @@ function StudentProfile() {
         attendanceAPI.getHistory(10)
       ])
       setProfile(profileRes.data)
-      setHistory(historyRes.data)
+      setHistory(historyRes.data || [])
     } catch (err) {
       console.error(err)
     } finally {
@@ -42,27 +45,26 @@ function StudentProfile() {
       <main className="p-4 space-y-4">
         {/* Profile Card */}
         <div className="card text-center">
-          {/* Avatar - Telegram rasmini ko'rsatish */}
-          {user.photo_url ? (
+          {/* Avatar */}
+          {avatarUrl ? (
             <img
-              src={user.photo_url}
-              alt={user.full_name}
+              src={avatarUrl}
+              alt={user?.full_name}
               className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-telegram-button"
               onError={(e) => {
-                // Rasm yuklanmasa, harfni ko'rsatish
                 e.target.style.display = 'none'
                 e.target.nextSibling.style.display = 'flex'
               }}
             />
           ) : null}
           <div
-            className={`w-20 h-20 bg-telegram-button rounded-full flex items-center justify-center text-telegram-buttonText text-3xl font-bold mx-auto mb-3 ${user.photo_url ? 'hidden' : ''}`}
+            className={`w-20 h-20 bg-telegram-button rounded-full items-center justify-center text-telegram-buttonText text-3xl font-bold mx-auto mb-3 ${avatarUrl ? 'hidden' : 'flex'}`}
           >
-            {user.full_name?.charAt(0) || 'U'}
+            {user?.full_name?.charAt(0) || 'U'}
           </div>
 
-          <h2 className="text-xl font-bold">{user.full_name}</h2>
-          {user.username && (
+          <h2 className="text-xl font-bold">{user?.full_name}</h2>
+          {user?.username && (
             <p className="text-telegram-hint">@{user.username}</p>
           )}
         </div>
