@@ -9,13 +9,14 @@ import { User, Phone, GraduationCap, Users, History } from 'lucide-react'
 
 function StudentProfile() {
   const { user } = useAuth()
-  const { tg } = useTelegram()
+  const { user: tgUser } = useTelegram()
   const [profile, setProfile] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [imgError, setImgError] = useState(false)
 
-  // Telegram'dan to'g'ridan-to'g'ri avatar olish
-  const avatarUrl = tg?.initDataUnsafe?.user?.photo_url || user?.photo_url
+  // Avatar URL - Telegram yoki database'dan
+  const avatarUrl = tgUser?.photo_url || user?.photo_url
 
   useEffect(() => {
     loadData()
@@ -46,22 +47,18 @@ function StudentProfile() {
         {/* Profile Card */}
         <div className="card text-center">
           {/* Avatar */}
-          {avatarUrl ? (
+          {avatarUrl && !imgError ? (
             <img
               src={avatarUrl}
               alt={user?.full_name}
               className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-2 border-telegram-button"
-              onError={(e) => {
-                e.target.style.display = 'none'
-                e.target.nextSibling.style.display = 'flex'
-              }}
+              onError={() => setImgError(true)}
             />
-          ) : null}
-          <div
-            className={`w-20 h-20 bg-telegram-button rounded-full items-center justify-center text-telegram-buttonText text-3xl font-bold mx-auto mb-3 ${avatarUrl ? 'hidden' : 'flex'}`}
-          >
-            {user?.full_name?.charAt(0) || 'U'}
-          </div>
+          ) : (
+            <div className="w-20 h-20 bg-telegram-button rounded-full flex items-center justify-center text-telegram-buttonText text-3xl font-bold mx-auto mb-3">
+              {user?.full_name?.charAt(0) || 'U'}
+            </div>
+          )}
 
           <h2 className="text-xl font-bold">{user?.full_name}</h2>
           {user?.username && (
