@@ -17,12 +17,55 @@ export function AuthProvider({ children }) {
   const getTokenKey = () => `token_${getTelegramUserId()}`
 
   useEffect(() => {
-    initAuth()
+    // Telegram SDK yuklanishini kutish
+    const checkTelegram = () => {
+      const tg = window.Telegram?.WebApp
+      if (tg) {
+        tg.ready()
+        tg.expand()
+        initAuth()
+      } else {
+        // SDK hali yuklanmagan - qayta tekshirish
+        setTimeout(checkTelegram, 100)
+      }
+    }
+
+    // Darhol tekshirish
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.ready()
+      window.Telegram.WebApp.expand()
+      initAuth()
+    } else {
+      // SDK yuklanishini kutish (max 3 soniya)
+      let attempts = 0
+      const maxAttempts = 30
+
+      const waitForTelegram = setInterval(() => {
+        attempts++
+        if (window.Telegram?.WebApp) {
+          clearInterval(waitForTelegram)
+          window.Telegram.WebApp.ready()
+          window.Telegram.WebApp.expand()
+          initAuth()
+        } else if (attempts >= maxAttempts) {
+          clearInterval(waitForTelegram)
+          console.log('Telegram SDK topilmadi')
+          setLoading(false)
+        }
+      }, 100)
+    }
   }, [])
 
   const initAuth = async () => {
+    const tg = window.Telegram?.WebApp
     const tokenKey = getTokenKey()
     const token = localStorage.getItem(tokenKey)
+
+    console.log('initAuth:', {
+      hasToken: !!token,
+      hasInitData: !!tg?.initData,
+      initDataLength: tg?.initData?.length
+    })
 
     if (token) {
       try {
@@ -31,15 +74,13 @@ export function AuthProvider({ children }) {
         setLoading(false)
         return
       } catch (err) {
+        console.error('Token invalid:', err)
         localStorage.removeItem(tokenKey)
       }
     }
 
     // Telegram WebApp dan auto-login
-    const tg = window.Telegram?.WebApp
-    if (tg?.initData) {
-      tg.ready()
-      tg.expand()
+    if (tg?.initData && tg.initData.length > 0) {
       try {
         await login(tg.initData)
       } catch (err) {
