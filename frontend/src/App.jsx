@@ -17,51 +17,38 @@ import AdminDashboard from './pages/admin/Dashboard'
 const ADMIN_IDS = [6369838846]
 
 function AppRoutes() {
-  const { user, loading, isRegistered } = useAuth()
-  const [debugInfo, setDebugInfo] = useState(null)
-
-  useEffect(() => {
-    // DEBUG
-    const tg = window.Telegram?.WebApp
-    const info = {
-      hasTelegram: !!window.Telegram,
-      hasWebApp: !!tg,
-      hasInitData: !!tg?.initData,
-      initDataLength: tg?.initData?.length || 0,
-      hasUser: !!tg?.initDataUnsafe?.user,
-      userId: tg?.initDataUnsafe?.user?.id,
-      platform: tg?.platform,
-      version: tg?.version
-    }
-    setDebugInfo(info)
-    console.log('=== DEBUG INFO ===', info)
-  }, [])
+  const { user, loading, isRegistered, error } = useAuth()
 
   if (loading) return <Loader />
 
-  // User yo'q - DEBUG ko'rsatish
+  // User yo'q - xato sahifasi
   if (!user) {
+    const tg = window.Telegram?.WebApp
+
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center">
-          <p className="text-red-500 mb-4">Telegram orqali kiring</p>
-          <p className="text-telegram-hint text-sm mb-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-900">
+        <div className="text-center max-w-sm">
+          <div className="text-6xl mb-4">📱</div>
+          <p className="text-red-400 text-xl font-bold mb-2">Telegram orqali kiring</p>
+          <p className="text-gray-400 text-sm mb-6">
             Bu ilova faqat Telegram Mini App sifatida ishlaydi
           </p>
 
-          {/* DEBUG INFO */}
-          {debugInfo && (
-            <div className="mt-4 p-3 bg-gray-800 rounded text-left text-xs text-green-400">
-              <p>🔍 DEBUG:</p>
-              <p>Telegram: {debugInfo.hasTelegram ? '✅' : '❌'}</p>
-              <p>WebApp: {debugInfo.hasWebApp ? '✅' : '❌'}</p>
-              <p>initData: {debugInfo.hasInitData ? '✅' : '❌'} ({debugInfo.initDataLength})</p>
-              <p>User: {debugInfo.hasUser ? '✅' : '❌'}</p>
-              <p>UserID: {debugInfo.userId || 'null'}</p>
-              <p>Platform: {debugInfo.platform || 'null'}</p>
-              <p>Version: {debugInfo.version || 'null'}</p>
+          {/* DEBUG INFO - DOIM KO'RINADI */}
+          <div className="bg-gray-800 rounded-lg p-4 text-left text-xs">
+            <p className="text-yellow-400 font-bold mb-2">🔍 Debug Info:</p>
+            <div className="space-y-1 text-gray-300">
+              <p>Telegram: <span className={window.Telegram ? 'text-green-400' : 'text-red-400'}>{window.Telegram ? 'YES' : 'NO'}</span></p>
+              <p>WebApp: <span className={tg ? 'text-green-400' : 'text-red-400'}>{tg ? 'YES' : 'NO'}</span></p>
+              <p>initData: <span className={tg?.initData ? 'text-green-400' : 'text-red-400'}>{tg?.initData ? `YES (${tg.initData.length})` : 'NO'}</span></p>
+              <p>User ID: <span className="text-blue-400">{tg?.initDataUnsafe?.user?.id || 'null'}</span></p>
+              <p>Platform: <span className="text-blue-400">{tg?.platform || 'null'}</span></p>
+              <p>Version: <span className="text-blue-400">{tg?.version || 'null'}</span></p>
             </div>
-          )}
+            {error && (
+              <p className="text-red-400 mt-2">Error: {error}</p>
+            )}
+          </div>
         </div>
       </div>
     )
