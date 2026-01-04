@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { teacherAPI } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import BottomNav from '../../components/BottomNav'
@@ -24,6 +25,7 @@ import {
 function TeacherHome() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { t } = useLanguage()
   const { hapticFeedback, showAlert } = useTelegram()
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
@@ -52,7 +54,7 @@ function TeacherHome() {
       hapticFeedback?.('success')
       loadData()
     } catch (err) {
-      showAlert?.(err.response?.data?.detail || 'Xatolik yuz berdi')
+      showAlert?.(err.response?.data?.detail || t.error)
     } finally {
       setActionLoading(null)
     }
@@ -66,15 +68,13 @@ function TeacherHome() {
       hapticFeedback?.('success')
       loadData()
     } catch (err) {
-      showAlert?.(err.response?.data?.detail || 'Xatolik yuz berdi')
+      showAlert?.(err.response?.data?.detail || t.error)
     } finally {
       setActionLoading(null)
     }
   }
 
   const today = new Date()
-  const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
-  const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr']
 
   if (loading) return <Loader />
 
@@ -93,10 +93,10 @@ function TeacherHome() {
         >
           <div>
             <p className="text-slate-400 text-sm">
-              {dayNames[today.getDay()]}, {today.getDate()} {monthNames[today.getMonth()]}
+              {t.days[today.getDay()]}, {today.getDate()} {t.months[today.getMonth()]}
             </p>
             <h1 className="text-2xl font-bold text-white mt-1">
-              Salom, {user?.full_name?.split(' ')[0]}! 👋
+              {t.home.greeting}, {user?.full_name?.split(' ')[0]}! 👋
             </h1>
           </div>
           <button
@@ -120,21 +120,21 @@ function TeacherHome() {
               <DoorOpen className="text-green-600" size={20} />
             </div>
             <p className="text-2xl font-bold text-slate-800 mt-2">{openLessons}</p>
-            <p className="text-xs text-slate-400">Ochiq</p>
+            <p className="text-xs text-slate-400">{t.home.open}</p>
           </div>
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
             <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mx-auto">
               <Clock className="text-amber-600" size={20} />
             </div>
             <p className="text-2xl font-bold text-slate-800 mt-2">{pendingLessons}</p>
-            <p className="text-xs text-slate-400">Kutilmoqda</p>
+            <p className="text-xs text-slate-400">{t.home.pending}</p>
           </div>
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
             <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mx-auto">
               <DoorClosed className="text-slate-600" size={20} />
             </div>
             <p className="text-2xl font-bold text-slate-800 mt-2">{closedLessons}</p>
-            <p className="text-xs text-slate-400">Yopiq</p>
+            <p className="text-xs text-slate-400">{t.home.closed}</p>
           </div>
         </motion.div>
 
@@ -147,20 +147,19 @@ function TeacherHome() {
         >
           <div className="flex items-center gap-2 mb-3">
             <BookOpen size={18} className="text-slate-600" />
-            <h2 className="font-bold text-slate-800">Bugungi darslar</h2>
+            <h2 className="font-bold text-slate-800">{t.home.todayLessons}</h2>
           </div>
 
           {lessons.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
               <div className="text-5xl mb-4">📚</div>
-              <h3 className="text-lg font-bold text-slate-800">Dars yo'q</h3>
-              <p className="text-slate-400 mt-2 text-sm">Yangi dars yarating</p>
+              <h3 className="text-lg font-bold text-slate-800">{t.home.noLessons}</h3>
               <button
                 onClick={() => navigate('/teacher/create')}
                 className="mt-4 bg-slate-800 text-white py-3 px-6 rounded-xl font-medium inline-flex items-center gap-2"
               >
                 <Plus size={20} />
-                Dars yaratish
+                {t.teacher.createLesson}
               </button>
             </div>
           ) : (
@@ -184,7 +183,7 @@ function TeacherHome() {
                             ? 'bg-slate-100 text-slate-500'
                             : 'bg-amber-100 text-amber-700'
                         }`}>
-                          {lesson.status === 'open' ? 'Ochiq' : lesson.status === 'closed' ? 'Yopiq' : 'Kutilmoqda'}
+                          {lesson.status === 'open' ? t.home.open : lesson.status === 'closed' ? t.home.closed : t.home.pending}
                         </span>
                       </div>
 
@@ -219,7 +218,7 @@ function TeacherHome() {
                       <XCircle size={14} />
                       {lesson.absent_count || 0}
                     </span>
-                    <span className="text-slate-400 ml-auto">Jami: {lesson.total_students}</span>
+                    <span className="text-slate-400 ml-auto">{t.stats.total}: {lesson.total_students}</span>
                   </div>
 
                   {/* Actions */}
@@ -235,7 +234,7 @@ function TeacherHome() {
                         ) : (
                           <DoorOpen size={18} />
                         )}
-                        Darsni ochish
+                        {t.teacher.openLesson}
                       </button>
                     )}
 
@@ -246,7 +245,7 @@ function TeacherHome() {
                           className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition"
                         >
                           <ClipboardList size={18} />
-                          Davomat
+                          {t.teacher.attendance}
                         </button>
                         <button
                           onClick={() => handleCloseLesson(lesson.id)}
@@ -258,7 +257,7 @@ function TeacherHome() {
                           ) : (
                             <DoorClosed size={18} />
                           )}
-                          Yopish
+                          {t.teacher.closeLesson}
                         </button>
                       </>
                     )}
@@ -269,7 +268,7 @@ function TeacherHome() {
                         className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition"
                       >
                         <BarChart3 size={18} />
-                        Natijalar
+                        {t.teacher.results}
                       </button>
                     )}
                   </div>

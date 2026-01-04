@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { teacherAPI } from '../../api'
 import { useTelegram } from '../../hooks/useTelegram'
 import Loader from '../../components/Loader'
@@ -16,6 +17,7 @@ import {
 
 function CreateLesson() {
   const navigate = useNavigate()
+  const { t } = useLanguage()
   const { hapticFeedback, showAlert } = useTelegram()
 
   const [groups, setGroups] = useState([])
@@ -44,11 +46,11 @@ function CreateLesson() {
       setSubjects(subjectsRes.data)
 
       if (subjectsRes.data.length === 0) {
-        setError('Sizga hech qanday fan tayinlanmagan. Admin bilan bog\'laning.')
+        setError(t.teacher.noSubjects)
       }
     } catch (err) {
       console.error(err)
-      setError('Ma\'lumotlarni yuklashda xatolik')
+      setError(t.error)
     } finally {
       setLoading(false)
     }
@@ -56,11 +58,11 @@ function CreateLesson() {
 
   const handleSubmit = async () => {
     if (!form.group_id) {
-      showAlert?.('Guruhni tanlang!')
+      showAlert?.(t.teacher.selectGroup + '!')
       return
     }
     if (!form.subject_id) {
-      showAlert?.('Fanni tanlang!')
+      showAlert?.(t.teacher.selectSubject + '!')
       return
     }
 
@@ -70,11 +72,11 @@ function CreateLesson() {
     try {
       await teacherAPI.createLesson(form.group_id, form.subject_id, form.room)
       hapticFeedback?.('success')
-      showAlert?.('✅ Dars muvaffaqiyatli yaratildi!')
+      showAlert?.('✅ ' + t.teacher.lessonCreated)
       navigate('/teacher')
     } catch (err) {
       console.error(err)
-      const message = err.response?.data?.detail || 'Xatolik yuz berdi'
+      const message = err.response?.data?.detail || t.error
       showAlert?.(typeof message === 'string' ? message : JSON.stringify(message))
     } finally {
       setSubmitting(false)
@@ -93,7 +95,7 @@ function CreateLesson() {
         >
           <ArrowLeft size={20} className="text-white" />
         </button>
-        <h1 className="text-xl font-bold text-white">Yangi dars</h1>
+        <h1 className="text-xl font-bold text-white">{t.teacher.createLesson}</h1>
       </div>
 
       <div className="p-4 space-y-4">
@@ -117,17 +119,17 @@ function CreateLesson() {
         >
           <label className="flex items-center gap-2 text-sm text-slate-400 mb-3">
             <Users size={16} />
-            Guruh
+            {t.profile.group}
           </label>
           <select
             value={form.group_id}
             onChange={(e) => setForm({ ...form, group_id: e.target.value })}
             className="w-full p-4 bg-slate-50 rounded-xl text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 transition"
           >
-            <option value="">Guruhni tanlang</option>
+            <option value="">{t.teacher.selectGroup}</option>
             {groups.map(g => (
               <option key={g.id} value={g.id}>
-                {g.name} ({g.course}-kurs)
+                {g.name} ({g.course}-{t.profile.course})
               </option>
             ))}
           </select>
@@ -151,7 +153,7 @@ function CreateLesson() {
             disabled={subjects.length === 0}
           >
             <option value="">
-              {subjects.length === 0 ? 'Fan topilmadi' : 'Fanni tanlang'}
+              {subjects.length === 0 ? t.stats.noData : t.teacher.selectSubject}
             </option>
             {subjects.map(s => (
               <option key={s.id} value={s.id}>
@@ -162,7 +164,7 @@ function CreateLesson() {
           {subjects.length === 0 && (
             <p className="text-amber-600 text-sm mt-2 flex items-center gap-1">
               <AlertCircle size={14} />
-              Sizga hech qanday fan tayinlanmagan
+              {t.teacher.noSubjects}
             </p>
           )}
         </motion.div>
@@ -176,13 +178,13 @@ function CreateLesson() {
         >
           <label className="flex items-center gap-2 text-sm text-slate-400 mb-3">
             <MapPin size={16} />
-            Xona (ixtiyoriy)
+            {t.teacher.room} ({t.teacher.optional})
           </label>
           <input
             type="text"
             value={form.room}
             onChange={(e) => setForm({ ...form, room: e.target.value })}
-            placeholder="Masalan: 301-xona"
+            placeholder={t.teacher.roomPlaceholder}
             className="w-full p-4 bg-slate-50 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition"
           />
         </motion.div>
@@ -195,7 +197,7 @@ function CreateLesson() {
           className="bg-blue-50 border border-blue-100 rounded-xl p-4"
         >
           <p className="text-blue-700 text-sm">
-            💡 Dars yaratilgandan so'ng, uni ochib davomatni boshqarishingiz mumkin.
+            💡 {t.teacher.lessonInfo}
           </p>
         </motion.div>
 
@@ -211,12 +213,12 @@ function CreateLesson() {
           {submitting ? (
             <>
               <Loader2 size={20} className="animate-spin" />
-              Yaratilmoqda...
+              {t.teacher.creating}
             </>
           ) : (
             <>
               <Plus size={20} />
-              Dars yaratish
+              {t.teacher.create}
             </>
           )}
         </motion.button>

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import BottomNav from '../../components/BottomNav'
-import Loader from '../../components/Loader'
 import { useTelegram } from '../../hooks/useTelegram'
 import {
   Globe,
@@ -17,38 +17,23 @@ import {
 
 function TeacherProfile() {
   const { user } = useAuth()
+  const { t, currentLang, changeLang, languages } = useLanguage()
   const { user: tgUser } = useTelegram()
-  const [loading, setLoading] = useState(false)
   const [imgError, setImgError] = useState(false)
   const [showLangModal, setShowLangModal] = useState(false)
-  const [currentLang, setCurrentLang] = useState('uz')
 
   const avatarUrl = tgUser?.photo_url || user?.photo_url
 
-  useEffect(() => {
-    const savedLang = localStorage.getItem('app_language') || 'uz'
-    setCurrentLang(savedLang)
-  }, [])
-
-  const languages = [
-    { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
-    { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-    { code: 'en', name: 'English', flag: '🇬🇧' }
-  ]
-
   const handleLangChange = (code) => {
-    setCurrentLang(code)
-    localStorage.setItem('app_language', code)
+    changeLang(code)
     setShowLangModal(false)
   }
-
-  if (loading) return <Loader />
 
   return (
     <div className="min-h-screen bg-slate-100 pb-24">
       {/* Header */}
       <div className="bg-slate-800 pt-12 pb-20 px-4">
-        <h1 className="text-white text-xl font-semibold text-center">Profil</h1>
+        <h1 className="text-white text-xl font-semibold text-center">{t.profile.title}</h1>
       </div>
 
       {/* Profile Card */}
@@ -76,7 +61,7 @@ function TeacherProfile() {
             <p className="text-slate-400">@{user.username}</p>
           )}
           <span className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-sm">
-            O'qituvchi
+            {t.profile.teacher}
           </span>
         </div>
       </motion.div>
@@ -94,8 +79,8 @@ function TeacherProfile() {
               <Briefcase size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Bo'lim</p>
-              <p className="font-semibold text-slate-800">{user?.department || '—'}</p>
+              <p className="text-xs text-slate-400">{t.profile.department}</p>
+              <p className="font-semibold text-slate-800">{user?.department || t.profile.notSet}</p>
             </div>
           </div>
         </div>
@@ -106,8 +91,8 @@ function TeacherProfile() {
               <Hash size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Xodim ID</p>
-              <p className="font-semibold text-slate-800">{user?.employee_id || '—'}</p>
+              <p className="text-xs text-slate-400">{t.profile.employeeId}</p>
+              <p className="font-semibold text-slate-800">{user?.employee_id || t.profile.notSet}</p>
             </div>
           </div>
         </div>
@@ -128,7 +113,7 @@ function TeacherProfile() {
             <Globe className="text-slate-600" size={20} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-slate-800">Til</p>
+            <p className="font-medium text-slate-800">{t.profile.language}</p>
           </div>
           <span className="text-slate-600 font-medium">
             {languages.find(l => l.code === currentLang)?.flag} {languages.find(l => l.code === currentLang)?.name}
@@ -146,7 +131,7 @@ function TeacherProfile() {
             <Headphones className="text-slate-600" size={20} />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-slate-800">Qo'llab-quvvatlash</p>
+            <p className="font-medium text-slate-800">{t.profile.support}</p>
           </div>
           <span className="text-slate-400 text-sm">@oriental_support</span>
           <ChevronRight size={18} className="text-slate-300" />
@@ -162,7 +147,7 @@ function TeacherProfile() {
             <Bell className="text-slate-600" size={20} />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-slate-800">Yangiliklar</p>
+            <p className="font-medium text-slate-800">{t.profile.news}</p>
           </div>
           <span className="text-slate-400 text-sm">@oriental_news</span>
           <ChevronRight size={18} className="text-slate-300" />
@@ -191,7 +176,7 @@ function TeacherProfile() {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-slate-800">Tilni tanlang</h3>
+                <h3 className="text-xl font-bold text-slate-800">{t.langModal.title}</h3>
                 <button
                   onClick={() => setShowLangModal(false)}
                   className="p-2 hover:bg-slate-100 rounded-full transition"
