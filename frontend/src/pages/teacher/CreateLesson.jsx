@@ -84,17 +84,16 @@ function CreateLesson() {
   if (loading) return <Loader />
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center gap-3 shadow-sm sticky top-0 z-10">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
+      <div className="bg-slate-800 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
+        <button
           onClick={() => navigate('/teacher')}
-          className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center"
+          className="w-10 h-10 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-center transition"
         >
-          <ArrowLeft size={20} className="text-gray-600" />
-        </motion.button>
-        <h1 className="text-xl font-bold text-gray-800">Yangi dars</h1>
+          <ArrowLeft size={20} className="text-white" />
+        </button>
+        <h1 className="text-xl font-bold text-white">Yangi dars</h1>
       </div>
 
       <div className="p-4 space-y-4">
@@ -103,7 +102,7 @@ function CreateLesson() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-3"
+            className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
           >
             <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
             <p className="text-red-600 text-sm">{error}</p>
@@ -114,16 +113,16 @@ function CreateLesson() {
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white rounded-2xl p-4 shadow-sm"
+          className="bg-white rounded-xl p-4 shadow-sm"
         >
-          <label className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+          <label className="flex items-center gap-2 text-sm text-slate-400 mb-3">
             <Users size={16} />
             Guruh
           </label>
           <select
             value={form.group_id}
             onChange={(e) => setForm({ ...form, group_id: e.target.value })}
-            className="w-full p-4 bg-gray-50 rounded-xl text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            className="w-full p-4 bg-slate-50 rounded-xl text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 transition"
           >
             <option value="">Guruhni tanlang</option>
             {groups.map(g => (
@@ -139,16 +138,16 @@ function CreateLesson() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-2xl p-4 shadow-sm"
+          className="bg-white rounded-xl p-4 shadow-sm"
         >
-          <label className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+          <label className="flex items-center gap-2 text-sm text-slate-400 mb-3">
             <BookOpen size={16} />
             Fan
           </label>
           <select
             value={form.subject_id}
             onChange={(e) => setForm({ ...form, subject_id: e.target.value })}
-            className="w-full p-4 bg-gray-50 rounded-xl text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            className="w-full p-4 bg-slate-50 rounded-xl text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 transition"
             disabled={subjects.length === 0}
           >
             <option value="">
@@ -161,8 +160,9 @@ function CreateLesson() {
             ))}
           </select>
           {subjects.length === 0 && (
-            <p className="text-orange-500 text-sm mt-2">
-              ⚠️ Sizga hech qanday fan tayinlanmagan
+            <p className="text-amber-600 text-sm mt-2 flex items-center gap-1">
+              <AlertCircle size={14} />
+              Sizga hech qanday fan tayinlanmagan
             </p>
           )}
         </motion.div>
@@ -172,9 +172,9 @@ function CreateLesson() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-4 shadow-sm"
+          className="bg-white rounded-xl p-4 shadow-sm"
         >
-          <label className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+          <label className="flex items-center gap-2 text-sm text-slate-400 mb-3">
             <MapPin size={16} />
             Xona (ixtiyoriy)
           </label>
@@ -183,7 +183,7 @@ function CreateLesson() {
             value={form.room}
             onChange={(e) => setForm({ ...form, room: e.target.value })}
             placeholder="Masalan: 301-xona"
-            className="w-full p-4 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+            className="w-full p-4 bg-slate-50 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition"
           />
         </motion.div>
 
@@ -192,9 +192,9 @@ function CreateLesson() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.15 }}
-          className="bg-indigo-50 rounded-2xl p-4"
+          className="bg-blue-50 border border-blue-100 rounded-xl p-4"
         >
-          <p className="text-indigo-600 text-sm">
+          <p className="text-blue-700 text-sm">
             💡 Dars yaratilgandan so'ng, uni ochib davomatni boshqarishingiz mumkin.
           </p>
         </motion.div>
@@ -204,10 +204,9 @@ function CreateLesson() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          whileTap={{ scale: 0.98 }}
           onClick={handleSubmit}
           disabled={submitting || !form.group_id || !form.subject_id}
-          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-4 rounded-2xl font-bold shadow-xl shadow-indigo-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none transition-all"
+          className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-slate-800 transition"
         >
           {submitting ? (
             <>

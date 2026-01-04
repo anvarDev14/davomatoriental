@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
-import { studentAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
 import { useTelegram } from '../../hooks/useTelegram'
@@ -10,18 +9,16 @@ import {
   Headphones,
   Bell,
   ChevronRight,
-  GraduationCap,
-  Users,
+  Briefcase,
   Hash,
   X,
   Check
 } from 'lucide-react'
 
-function StudentProfile() {
+function TeacherProfile() {
   const { user } = useAuth()
   const { user: tgUser } = useTelegram()
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [imgError, setImgError] = useState(false)
   const [showLangModal, setShowLangModal] = useState(false)
   const [currentLang, setCurrentLang] = useState('uz')
@@ -29,21 +26,9 @@ function StudentProfile() {
   const avatarUrl = tgUser?.photo_url || user?.photo_url
 
   useEffect(() => {
-    loadData()
     const savedLang = localStorage.getItem('app_language') || 'uz'
     setCurrentLang(savedLang)
   }, [])
-
-  const loadData = async () => {
-    try {
-      const res = await studentAPI.getProfile()
-      setProfile(res.data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const languages = [
     { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
@@ -90,6 +75,9 @@ function StudentProfile() {
           {user?.username && (
             <p className="text-slate-400">@{user.username}</p>
           )}
+          <span className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-sm">
+            O'qituvchi
+          </span>
         </div>
       </motion.div>
 
@@ -103,29 +91,12 @@ function StudentProfile() {
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-              <GraduationCap size={20} className="text-slate-600" />
+              <Briefcase size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Yo'nalish</p>
-              <p className="font-semibold text-slate-800">{profile?.group?.direction?.name || '—'}</p>
+              <p className="text-xs text-slate-400">Bo'lim</p>
+              <p className="font-semibold text-slate-800">{user?.department || '—'}</p>
             </div>
-          </div>
-        </div>
-
-        <div className="p-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-              <Users size={20} className="text-slate-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs text-slate-400">Guruh</p>
-              <p className="font-semibold text-slate-800">{profile?.group?.name || '—'}</p>
-            </div>
-            {profile?.group?.course && (
-              <span className="px-3 py-1 bg-slate-100 rounded-full text-sm text-slate-600">
-                {profile.group.course}-kurs
-              </span>
-            )}
           </div>
         </div>
 
@@ -135,8 +106,8 @@ function StudentProfile() {
               <Hash size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Talaba ID</p>
-              <p className="font-semibold text-slate-800">{profile?.student_id || '—'}</p>
+              <p className="text-xs text-slate-400">Xodim ID</p>
+              <p className="font-semibold text-slate-800">{user?.employee_id || '—'}</p>
             </div>
           </div>
         </div>
@@ -251,9 +222,9 @@ function StudentProfile() {
         )}
       </AnimatePresence>
 
-      <BottomNav />
+      <BottomNav role="teacher" />
     </div>
   )
 }
 
-export default StudentProfile
+export default TeacherProfile
