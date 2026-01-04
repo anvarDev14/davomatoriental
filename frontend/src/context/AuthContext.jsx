@@ -33,13 +33,13 @@ export const AuthProvider = ({ children }) => {
 
       const response = await authAPI.login(initData)
 
-      console.log('Auth response:', response.data) // Debug
+      console.log('Auth response:', response.data)
 
-      // MUHIM: response.data.user ni olish!
+      // Backend: { token, user } qaytaradi
       const userData = response.data.user
 
-      console.log('User data:', userData) // Debug
-      console.log('User role:', userData?.role) // Debug
+      console.log('User data:', userData)
+      console.log('User role:', userData?.role)
 
       setUser(userData)
     } catch (err) {
@@ -50,6 +50,11 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const logout = () => {
+    localStorage.removeItem('token')
+    setUser(null)
+  }
+
   const value = {
     user,
     loading,
@@ -58,7 +63,8 @@ export const AuthProvider = ({ children }) => {
     isStudent: user?.role === 'student',
     isTeacher: user?.role === 'teacher',
     isAdmin: user?.role === 'admin',
-    checkAuth
+    checkAuth,
+    logout
   }
 
   return (

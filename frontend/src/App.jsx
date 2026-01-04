@@ -13,15 +13,10 @@ import StudentStatistics from './pages/student/Statistics'
 import TeacherHome from './pages/teacher/Home'
 import TeacherProfile from './pages/teacher/Profile'
 import CreateLesson from './pages/teacher/CreateLesson'
-import LessonDetail from './pages/teacher/LessonDetail'
-
-// Admin pages (agar bor bo'lsa)
-// import AdminHome from './pages/admin/Home'
 
 // Loader
 import Loader from './components/Loader'
 
-// Role-based wrapper component
 function RoleBasedRoutes() {
   const { user, loading, error, isStudent, isTeacher, isAdmin } = useAuth()
 
@@ -37,7 +32,10 @@ function RoleBasedRoutes() {
           <h2 className="text-xl font-bold text-slate-800 mb-2">Xatolik</h2>
           <p className="text-slate-500 mb-4">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              localStorage.clear()
+              window.location.reload()
+            }}
             className="bg-slate-800 text-white px-6 py-2 rounded-xl"
           >
             Qayta urinish
@@ -59,21 +57,19 @@ function RoleBasedRoutes() {
     )
   }
 
-  // Debug: role ni ko'rsatish
   console.log('Current user role:', user.role)
 
   // ADMIN
   if (isAdmin) {
     return (
       <Routes>
-        {/* Admin o'z sahifalariga ega bo'ladi */}
-        {/* Hozircha teacher sahifalarini ko'rsatamiz */}
-        <Route path="/" element={<Navigate to="/admin" replace />} />
-        <Route path="/admin" element={<TeacherHome />} />
-        <Route path="/admin/*" element={<TeacherHome />} />
-        {/* Yoki admin panel bo'lsa: */}
-        {/* <Route path="/admin" element={<AdminHome />} /> */}
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="/" element={<Navigate to="/teacher" replace />} />
+        <Route path="/teacher" element={<TeacherHome />} />
+        <Route path="/teacher/profile" element={<TeacherProfile />} />
+        <Route path="/teacher/create" element={<CreateLesson />} />
+        <Route path="/teacher/schedule" element={<TeacherHome />} />
+        <Route path="/teacher/stats" element={<TeacherHome />} />
+        <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     )
   }
@@ -86,7 +82,6 @@ function RoleBasedRoutes() {
         <Route path="/teacher" element={<TeacherHome />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />
         <Route path="/teacher/create" element={<CreateLesson />} />
-        <Route path="/teacher/lesson/:id" element={<LessonDetail />} />
         <Route path="/teacher/schedule" element={<TeacherHome />} />
         <Route path="/teacher/stats" element={<TeacherHome />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
@@ -94,7 +89,7 @@ function RoleBasedRoutes() {
     )
   }
 
-  // STUDENT (default)
+  // STUDENT
   return (
     <Routes>
       <Route path="/" element={<StudentHome />} />

@@ -30,7 +30,6 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (initData) => {
     const response = await api.post('/auth/telegram', { init_data: initData })
-    // Backend: { token, user } qaytaradi
     if (response.data.token) {
       localStorage.setItem('token', response.data.token)
     }
