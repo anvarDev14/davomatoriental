@@ -1,7 +1,10 @@
 import React from 'react'
 import { motion } from 'framer-motion'
+import { useLanguage } from '../context/LanguageContext'
 
 function Loader() {
+  const { t } = useLanguage()
+
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
       <motion.div
@@ -24,7 +27,7 @@ function Loader() {
           transition={{ delay: 0.3 }}
           className="mt-4 text-slate-400 text-sm"
         >
-          Yuklanmoqda...
+          {t?.loading || 'Yuklanmoqda...'}
         </motion.p>
       </motion.div>
     </div>

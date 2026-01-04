@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { useAuth } from '../../context/AuthContext'
-import Header from '../../components/Header'
+import { motion } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { studentAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
-import { Clock, MapPin, User } from 'lucide-react'
-
-const DAY_NAMES = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
+import { Calendar, Clock, MapPin, User } from 'lucide-react'
 
 function StudentSchedule() {
-  const [schedule, setSchedule] = useState([])
+  const { t } = useLanguage()
+  const [schedule, setSchedule] = useState({})
   const [loading, setLoading] = useState(true)
-  const [profile, setProfile] = useState(null)
-  const [activeDay, setActiveDay] = useState(new Date().getDay() - 1)
+  const [activeDay, setActiveDay] = useState(new Date().getDay())
+
+  const dayOrder = [1, 2, 3, 4, 5, 6, 0]
+  const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
   useEffect(() => {
     loadData()
@@ -20,13 +21,8 @@ function StudentSchedule() {
 
   const loadData = async () => {
     try {
-      const profileRes = await studentAPI.getProfile()
-      setProfile(profileRes.data)
-
-      if (profileRes.data.group?.id) {
-        const scheduleRes = await scheduleAPI.getWeek(profileRes.data.group.id)
-        setSchedule(scheduleRes.data)
-      }
+      const res = await studentAPI.getSchedule()
+      setSchedule(res.data)
     } catch (err) {
       console.error(err)
     } finally {
@@ -36,69 +32,93 @@ function StudentSchedule() {
 
   if (loading) return <Loader />
 
-  const todayIndex = new Date().getDay() - 1
+  const activeDayLessons = schedule[activeDay] || []
 
   return (
-    <div className="min-h-screen pb-20">
-      <Header title="📅 Dars jadvali" subtitle={profile?.group?.name || ''} />
+    <div className="min-h-screen bg-slate-100 pb-24">
+      <div className="bg-slate-800 px-4 pt-12 pb-6">
+        <motion.div
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="flex items-center gap-2"
+        >
+          <Calendar size={24} className="text-white" />
+          <h1 className="text-xl font-bold text-white">{t.schedule.title}</h1>
+        </motion.div>
+      </div>
 
-      <main className="p-4">
-        {/* Day tabs */}
-        <div className="flex overflow-x-auto gap-2 mb-4 pb-2">
-          {DAY_NAMES.map((day, index) => (
-            <button
-              key={index}
-              onClick={() => setActiveDay(index)}
-              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
-                activeDay === index
-                  ? 'bg-telegram-button text-telegram-buttonText'
-                  : index === todayIndex
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-telegram-secondary text-telegram-text'
-              }`}
-            >
-              {day}
-              {index === todayIndex && ' (Bugun)'}
-            </button>
-          ))}
-        </div>
+      <div className="px-4 -mt-2">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-white rounded-2xl p-2 shadow-sm overflow-x-auto"
+        >
+          <div className="flex gap-1 min-w-max">
+            {dayOrder.map((day, index) => (
+              <button
+                key={day}
+                onClick={() => setActiveDay(day)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
+                  activeDay === day
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {t.schedule.days[dayKeys[index]]}
+              </button>
+            ))}
+          </div>
+        </motion.div>
 
-        {/* Lessons */}
-        <div className="space-y-3">
-          {schedule[activeDay]?.lessons?.length > 0 ? (
-            schedule[activeDay].lessons.map((lesson, index) => (
-              <div key={index} className="card animate-fadeIn">
-                <div className="flex items-center gap-2 text-sm text-telegram-hint mb-2">
-                  <Clock size={14} />
-                  <span>{lesson.start_time?.substring(0, 5)} - {lesson.end_time?.substring(0, 5)}</span>
-                </div>
-
-                <h3 className="font-semibold text-lg mb-2">{lesson.subject_name}</h3>
-
-                <div className="flex flex-wrap gap-3 text-sm text-telegram-hint">
-                  {lesson.teacher_name && (
-                    <span className="flex items-center gap-1">
-                      <User size={14} />
-                      {lesson.teacher_name}
-                    </span>
-                  )}
-                  {lesson.room && (
-                    <span className="flex items-center gap-1">
-                      <MapPin size={14} />
-                      {lesson.room}-xona
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="mt-4"
+        >
+          {activeDayLessons.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+              <div className="text-5xl mb-4">😴</div>
+              <p className="text-slate-400">{t.schedule.noLessons}</p>
+            </div>
           ) : (
-            <div className="card text-center py-8">
-              <p className="text-4xl mb-2">😴</p>
-              <p className="text-telegram-hint">{DAY_NAMES[activeDay]} kuni dars yo'q</p>
+            <div className="space-y-3">
+              {activeDayLessons.map((lesson, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 + index * 0.05 }}
+                  className="bg-white rounded-2xl p-4 shadow-sm"
+                >
+                  <h3 className="font-bold text-slate-800">{lesson.subject_name}</h3>
+
+                  <div className="flex flex-wrap gap-3 mt-2 text-sm text-slate-400">
+                    {lesson.teacher_name && (
+                      <span className="flex items-center gap-1">
+                        <User size={14} />
+                        {lesson.teacher_name}
+                      </span>
+                    )}
+                    {lesson.start_time && (
+                      <span className="flex items-center gap-1">
+                        <Clock size={14} />
+                        {lesson.start_time?.slice(0, 5)} - {lesson.end_time?.slice(0, 5)}
+                      </span>
+                    )}
+                    {lesson.room && (
+                      <span className="flex items-center gap-1">
+                        <MapPin size={14} />
+                        {lesson.room}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
             </div>
           )}
-        </div>
-      </main>
+        </motion.div>
+      </div>
 
       <BottomNav />
     </div>

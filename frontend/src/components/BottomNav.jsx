@@ -1,24 +1,26 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useLanguage } from '../context/LanguageContext'
 import { Home, Calendar, BarChart3, User } from 'lucide-react'
 
 function BottomNav({ role = 'student' }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useLanguage()
 
   const studentNav = [
-    { path: '/', icon: Home, label: 'Bosh' },
-    { path: '/schedule', icon: Calendar, label: 'Jadval' },
-    { path: '/stats', icon: BarChart3, label: 'Statistika' },
-    { path: '/profile', icon: User, label: 'Profil' }
+    { path: '/', icon: Home, label: t.nav.home },
+    { path: '/schedule', icon: Calendar, label: t.nav.schedule },
+    { path: '/stats', icon: BarChart3, label: t.nav.statistics },
+    { path: '/profile', icon: User, label: t.nav.profile }
   ]
 
   const teacherNav = [
-    { path: '/teacher', icon: Home, label: 'Bosh' },
-    { path: '/teacher/schedule', icon: Calendar, label: 'Jadval' },
-    { path: '/teacher/stats', icon: BarChart3, label: 'Statistika' },
-    { path: '/teacher/profile', icon: User, label: 'Profil' }
+    { path: '/teacher', icon: Home, label: t.nav.home },
+    { path: '/teacher/schedule', icon: Calendar, label: t.nav.schedule },
+    { path: '/teacher/stats', icon: BarChart3, label: t.nav.statistics },
+    { path: '/teacher/profile', icon: User, label: t.nav.profile }
   ]
 
   const navItems = role === 'teacher' ? teacherNav : studentNav

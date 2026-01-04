@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { studentAPI, attendanceAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
@@ -18,6 +19,7 @@ import {
 
 function StudentHome() {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const { hapticFeedback, showAlert } = useTelegram()
   const [lessons, setLessons] = useState([])
   const [stats, setStats] = useState(null)
@@ -50,18 +52,16 @@ function StudentHome() {
     try {
       await attendanceAPI.mark(lessonId)
       hapticFeedback?.('success')
-      showAlert?.('✅ Davomat belgilandi!')
+      showAlert?.('✅ ' + t.home.marked)
       loadData()
     } catch (err) {
-      showAlert?.(err.response?.data?.detail || 'Xatolik yuz berdi')
+      showAlert?.(err.response?.data?.detail || t.error)
     } finally {
       setMarkingId(null)
     }
   }
 
   const today = new Date()
-  const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
-  const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr']
 
   if (loading) return <Loader />
 
@@ -74,10 +74,10 @@ function StudentHome() {
           animate={{ y: 0, opacity: 1 }}
         >
           <p className="text-slate-400 text-sm">
-            {dayNames[today.getDay()]}, {today.getDate()} {monthNames[today.getMonth()]}
+            {t.days[today.getDay()]}, {today.getDate()} {t.months[today.getMonth()]}
           </p>
           <h1 className="text-2xl font-bold text-white mt-1">
-            Salom, {user?.full_name?.split(' ')[0]}! 👋
+            {t.home.greeting}, {user?.full_name?.split(' ')[0]}! 👋
           </h1>
         </motion.div>
       </div>
@@ -92,7 +92,7 @@ function StudentHome() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Umumiy davomat</p>
+                <p className="text-slate-400 text-sm">{t.home.totalAttendance}</p>
                 <p className="text-4xl font-bold text-slate-800 mt-1">{stats.attendance_percentage}%</p>
               </div>
               <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center">
@@ -106,7 +106,7 @@ function StudentHome() {
                   <CheckCircle2 size={16} className="text-green-600" />
                 </div>
                 <div>
-                  <p className="text-slate-400 text-xs">Kelgan</p>
+                  <p className="text-slate-400 text-xs">{t.home.attended}</p>
                   <p className="font-bold text-slate-800">{stats.present_count}</p>
                 </div>
               </div>
@@ -115,7 +115,7 @@ function StudentHome() {
                   <XCircle size={16} className="text-red-600" />
                 </div>
                 <div>
-                  <p className="text-slate-400 text-xs">Qolgan</p>
+                  <p className="text-slate-400 text-xs">{t.home.missed}</p>
                   <p className="font-bold text-slate-800">{stats.absent_count}</p>
                 </div>
               </div>
@@ -132,14 +132,14 @@ function StudentHome() {
         >
           <div className="flex items-center gap-2 mb-3">
             <Calendar size={18} className="text-slate-600" />
-            <h2 className="font-bold text-slate-800">Bugungi darslar</h2>
+            <h2 className="font-bold text-slate-800">{t.home.todayLessons}</h2>
           </div>
 
           {lessons.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
               <div className="text-5xl mb-4">🎉</div>
-              <h3 className="text-lg font-bold text-slate-800">Bugun dars yo'q!</h3>
-              <p className="text-slate-400 mt-2 text-sm">Dam oling va keyingi darslarga tayyorlaning</p>
+              <h3 className="text-lg font-bold text-slate-800">{t.home.noLessons}</h3>
+              <p className="text-slate-400 mt-2 text-sm">{t.home.restMessage}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -160,7 +160,7 @@ function StudentHome() {
                             ? 'bg-green-100 text-green-700'
                             : 'bg-slate-100 text-slate-500'
                         }`}>
-                          {lesson.status === 'open' ? 'Ochiq' : 'Kutilmoqda'}
+                          {lesson.status === 'open' ? t.home.open : t.home.pending}
                         </span>
                       </div>
 
@@ -191,10 +191,7 @@ function StudentHome() {
                     {lesson.is_marked ? (
                       <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-3 rounded-xl">
                         <CheckCircle2 size={20} />
-                        <span className="font-medium">Davomat belgilangan</span>
-                        <span className="text-sm text-green-500 ml-auto">
-                          {lesson.marked_at ? new Date(lesson.marked_at).toLocaleTimeString('uz', { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
+                        <span className="font-medium">{t.home.marked}</span>
                       </div>
                     ) : lesson.can_mark ? (
                       <button
@@ -205,18 +202,18 @@ function StudentHome() {
                         {markingId === lesson.id ? (
                           <>
                             <Loader2 size={20} className="animate-spin" />
-                            Belgilanmoqda...
+                            {t.home.marking}
                           </>
                         ) : (
                           <>
                             <CheckCircle2 size={20} />
-                            Davomatni belgilash
+                            {t.home.markAttendance}
                           </>
                         )}
                       </button>
                     ) : (
                       <div className="text-center text-slate-400 bg-slate-50 px-4 py-3 rounded-xl">
-                        Dars hali ochilmagan
+                        {t.home.lessonNotOpen}
                       </div>
                     )}
                   </div>

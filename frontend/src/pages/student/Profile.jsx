@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { studentAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
@@ -19,19 +20,17 @@ import {
 
 function StudentProfile() {
   const { user } = useAuth()
+  const { t, currentLang, changeLang, languages } = useLanguage()
   const { user: tgUser } = useTelegram()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
   const [showLangModal, setShowLangModal] = useState(false)
-  const [currentLang, setCurrentLang] = useState('uz')
 
   const avatarUrl = tgUser?.photo_url || user?.photo_url
 
   useEffect(() => {
     loadData()
-    const savedLang = localStorage.getItem('app_language') || 'uz'
-    setCurrentLang(savedLang)
   }, [])
 
   const loadData = async () => {
@@ -45,15 +44,8 @@ function StudentProfile() {
     }
   }
 
-  const languages = [
-    { code: 'uz', name: "O'zbekcha", flag: '🇺🇿' },
-    { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-    { code: 'en', name: 'English', flag: '🇬🇧' }
-  ]
-
   const handleLangChange = (code) => {
-    setCurrentLang(code)
-    localStorage.setItem('app_language', code)
+    changeLang(code)
     setShowLangModal(false)
   }
 
@@ -63,7 +55,7 @@ function StudentProfile() {
     <div className="min-h-screen bg-slate-100 pb-24">
       {/* Header */}
       <div className="bg-slate-800 pt-12 pb-20 px-4">
-        <h1 className="text-white text-xl font-semibold text-center">Profil</h1>
+        <h1 className="text-white text-xl font-semibold text-center">{t.profile.title}</h1>
       </div>
 
       {/* Profile Card */}
@@ -106,8 +98,8 @@ function StudentProfile() {
               <GraduationCap size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Yo'nalish</p>
-              <p className="font-semibold text-slate-800">{profile?.group?.direction?.name || '—'}</p>
+              <p className="text-xs text-slate-400">{t.profile.direction}</p>
+              <p className="font-semibold text-slate-800">{profile?.group?.direction?.name || t.profile.notSet}</p>
             </div>
           </div>
         </div>
@@ -118,12 +110,12 @@ function StudentProfile() {
               <Users size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Guruh</p>
-              <p className="font-semibold text-slate-800">{profile?.group?.name || '—'}</p>
+              <p className="text-xs text-slate-400">{t.profile.group}</p>
+              <p className="font-semibold text-slate-800">{profile?.group?.name || t.profile.notSet}</p>
             </div>
             {profile?.group?.course && (
               <span className="px-3 py-1 bg-slate-100 rounded-full text-sm text-slate-600">
-                {profile.group.course}-kurs
+                {profile.group.course}-{t.profile.course}
               </span>
             )}
           </div>
@@ -135,8 +127,8 @@ function StudentProfile() {
               <Hash size={20} className="text-slate-600" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-slate-400">Talaba ID</p>
-              <p className="font-semibold text-slate-800">{profile?.student_id || '—'}</p>
+              <p className="text-xs text-slate-400">{t.profile.studentId}</p>
+              <p className="font-semibold text-slate-800">{profile?.student_id || t.profile.notSet}</p>
             </div>
           </div>
         </div>
@@ -157,7 +149,7 @@ function StudentProfile() {
             <Globe className="text-slate-600" size={20} />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-slate-800">Til</p>
+            <p className="font-medium text-slate-800">{t.profile.language}</p>
           </div>
           <span className="text-slate-600 font-medium">
             {languages.find(l => l.code === currentLang)?.flag} {languages.find(l => l.code === currentLang)?.name}
@@ -175,7 +167,7 @@ function StudentProfile() {
             <Headphones className="text-slate-600" size={20} />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-slate-800">Qo'llab-quvvatlash</p>
+            <p className="font-medium text-slate-800">{t.profile.support}</p>
           </div>
           <span className="text-slate-400 text-sm">@oriental_support</span>
           <ChevronRight size={18} className="text-slate-300" />
@@ -191,7 +183,7 @@ function StudentProfile() {
             <Bell className="text-slate-600" size={20} />
           </div>
           <div className="flex-1">
-            <p className="font-medium text-slate-800">Yangiliklar</p>
+            <p className="font-medium text-slate-800">{t.profile.news}</p>
           </div>
           <span className="text-slate-400 text-sm">@oriental_news</span>
           <ChevronRight size={18} className="text-slate-300" />
@@ -220,7 +212,7 @@ function StudentProfile() {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-slate-800">Tilni tanlang</h3>
+                <h3 className="text-xl font-bold text-slate-800">{t.langModal.title}</h3>
                 <button
                   onClick={() => setShowLangModal(false)}
                   className="p-2 hover:bg-slate-100 rounded-full transition"
