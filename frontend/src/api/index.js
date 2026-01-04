@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = 'https://api.anvarcode.xyz/api'  // /api qo'shildi!
+const API_URL = 'https://api.anvarcode.xyz/api'
 
 const api = axios.create({
   baseURL: API_URL,
@@ -30,8 +30,9 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (initData) => {
     const response = await api.post('/auth/telegram', { init_data: initData })
-    if (response.data.access_token) {
-      localStorage.setItem('token', response.data.access_token)
+    // Backend: { token, user } qaytaradi
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token)
     }
     return response
   },
@@ -54,7 +55,7 @@ export const teacherAPI = {
   getToday: () => api.get('/teacher/today'),
   getGroups: () => api.get('/teacher/groups'),
   getSubjects: () => api.get('/teacher/subjects'),
-  createLesson: (groupId, subjectId, room) =>
+  createLesson: (groupId, subjectId, room) => 
     api.post('/teacher/lesson/create', { group_id: groupId, subject_id: subjectId, room }),
   openLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/open`),
   closeLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/close`),

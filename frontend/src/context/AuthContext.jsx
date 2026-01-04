@@ -22,7 +22,6 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      // Telegram WebApp dan initData olish
       const tg = window.Telegram?.WebApp
       const initData = tg?.initData
 
@@ -32,11 +31,15 @@ export const AuthProvider = ({ children }) => {
         return
       }
 
-      // Backend'ga autentifikatsiya
       const response = await authAPI.login(initData)
-      const userData = response.data
 
-      console.log('Auth response:', userData) // Debug uchun
+      console.log('Auth response:', response.data) // Debug
+
+      // MUHIM: response.data.user ni olish!
+      const userData = response.data.user
+
+      console.log('User data:', userData) // Debug
+      console.log('User role:', userData?.role) // Debug
 
       setUser(userData)
     } catch (err) {
@@ -63,4 +66,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   )
-}z
+}
