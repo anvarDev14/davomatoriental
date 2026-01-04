@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+const API_URL = 'https://api.anvarcode.xyz/api'  // /api qo'shildi!
 
 const api = axios.create({
   baseURL: API_URL,
@@ -9,86 +9,88 @@ const api = axios.create({
   }
 })
 
-// Token qo'shish
+// Request interceptor - token qo'shish
 api.interceptors.request.use((config) => {
-  // Telegram user ID olish
-  const tg = window.Telegram?.WebApp
-  const telegramId = tg?.initDataUnsafe?.user?.id || 'default'
-  const token = localStorage.getItem(`token_${telegramId}`)
-
+  const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
-// Auth API
+// Response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Error:', error.response?.data || error.message)
+    return Promise.reject(error)
+  }
+)
+
 export const authAPI = {
-  telegram: (initData) => api.post('/auth/telegram', { init_data: initData }),
-  getMe: () => api.get('/auth/me'),
+  login: async (initData) => {
+    const response = await api.post('/auth/telegram', { init_data: initData })
+    if (response.data.access_token) {
+      localStorage.setItem('token', response.data.access_token)
+    }
+    return response
+  },
+  me: () => api.get('/auth/me'),
   getDirections: () => api.get('/auth/directions'),
   getGroups: (directionId) => api.get(`/auth/groups/${directionId}`),
-  registerStudent: (data) => api.post(`/auth/register/student?group_id=${data.group_id}&full_name=${encodeURIComponent(data.full_name)}${data.student_id ? '&student_id=' + data.student_id : ''}`),
-  registerTeacher: (data) => api.post(`/auth/register/teacher?full_name=${encodeURIComponent(data.full_name)}&department=${encodeURIComponent(data.department)}${data.employee_id ? '&employee_id=' + data.employee_id : ''}`),
+  registerStudent: (data) => api.post('/auth/register/student', data),
+  registerTeacher: (data) => api.post('/auth/register/teacher', data),
   checkAdmin: () => api.get('/auth/check-admin')
 }
 
-// Student API
 export const studentAPI = {
+  getProfile: () => api.get('/student/profile'),
   getToday: () => api.get('/student/today'),
   getStats: () => api.get('/student/stats'),
   getSchedule: () => api.get('/student/schedule')
 }
 
-// Teacher API
 export const teacherAPI = {
   getToday: () => api.get('/teacher/today'),
-  getLessonAttendance: (lessonId) => api.get(`/teacher/lesson/${lessonId}/attendance`),
+  getGroups: () => api.get('/teacher/groups'),
+  getSubjects: () => api.get('/teacher/subjects'),
+  createLesson: (groupId, subjectId, room) =>
+    api.post('/teacher/lesson/create', { group_id: groupId, subject_id: subjectId, room }),
   openLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/open`),
   closeLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/close`),
-  markAttendance: (lessonId, studentId, status) => api.post(`/teacher/lesson/${lessonId}/mark/${studentId}?status=${status}`),
   deleteLesson: (lessonId) => api.delete(`/teacher/lesson/${lessonId}`),
-  getSubjects: () => api.get('/teacher/subjects'),
-  getGroups: () => api.get('/teacher/groups'),
-  createLesson: (group_id, subject_id, room) => api.post(`/teacher/lesson/create?group_id=${group_id}&subject_id=${subject_id}${room ? '&room=' + room : ''}`),
-  getMySchedule: () => api.get('/teacher/my-schedule')
+  getLessonAttendance: (lessonId) => api.get(`/teacher/lesson/${lessonId}/attendance`),
+  markStudent: (lessonId, studentId) => api.post(`/teacher/lesson/${lessonId}/mark/${studentId}`)
 }
 
-// Attendance API
 export const attendanceAPI = {
-  mark: (lessonId) => api.post(`/attendance/mark/${lessonId}`),
-  getHistory: () => api.get('/attendance/history')
+  mark: (lessonId) => api.post('/attendance/mark', { lesson_id: lessonId }),
+  history: () => api.get('/attendance/history')
 }
 
-// Admin API
-// Admin API
 export const adminAPI = {
   getStats: () => api.get('/admin/stats'),
   getStudents: () => api.get('/admin/students'),
   getTeachers: () => api.get('/admin/teachers'),
   getGroups: () => api.get('/admin/groups'),
   getDirections: () => api.get('/admin/directions'),
-  getSubjects: () => api.get('/admin/subjects'),
-  getTodayLessons: () => api.get('/admin/lessons/today'),
-  getAttendanceReport: (params) => api.get('/admin/attendance/report', { params }),
-  exportExcel: (params) => api.get('/admin/attendance/export', {
-    params,
-    responseType: 'blob'
-  }),
-  // CRUD
-  createDirection: (data) => api.post(`/admin/directions/create?name=${encodeURIComponent(data.name)}${data.short_name ? '&short_name=' + encodeURIComponent(data.short_name) : ''}`),
+  createDirection: (data) => api.post('/admin/directions/create', data),
   deleteDirection: (id) => api.delete(`/admin/directions/${id}`),
-  createGroup: (data) => api.post(`/admin/groups/create?name=${encodeURIComponent(data.name)}&direction_id=${data.direction_id}&course=${data.course || 1}`),
+  createGroup: (data) => api.post('/admin/groups/create', data),
   deleteGroup: (id) => api.delete(`/admin/groups/${id}`),
-  createSubject: (data) => api.post(`/admin/subjects/create?name=${encodeURIComponent(data.name)}${data.short_name ? '&short_name=' + encodeURIComponent(data.short_name) : ''}`),
+  getSubjects: () => api.get('/admin/subjects'),
+  createSubject: (data) => api.post('/admin/subjects/create', data),
   deleteSubject: (id) => api.delete(`/admin/subjects/${id}`),
-  deleteUser: (userId) => api.delete(`/admin/users/${userId}`)
+  getAttendanceReport: (params) => api.get('/admin/attendance/report', { params }),
+  exportAttendance: (params) => api.get('/admin/attendance/export', { params, responseType: 'blob' }),
+  getTodayLessons: () => api.get('/admin/lessons/today'),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`)
+}
+
+export const scheduleAPI = {
+  getWeek: (groupId) => api.get(`/schedule/week/${groupId}`),
+  getSubjects: () => api.get('/schedule/subjects'),
+  getGroups: () => api.get('/schedule/groups')
 }
 
 export default api
-
-// Schedule API
-export const scheduleAPI = {
-  getWeekSchedule: () => api.get('/schedule/week'),
-  getToday: () => api.get('/schedule/today')
-}
