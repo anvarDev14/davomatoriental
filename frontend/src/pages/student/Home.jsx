@@ -20,7 +20,7 @@ function StudentHome() {
   const loadData = async () => {
     try {
       const [lessonsRes, statsRes] = await Promise.all([
-        studentAPI.getTodayLessons(),
+        studentAPI.getToday(),  // TUZATILDI: getTodayLessons -> getToday
         studentAPI.getStats()
       ])
       setLessons(lessonsRes.data)
@@ -36,20 +36,18 @@ function StudentHome() {
     setLessons(prev => prev.map(l =>
       l.id === lessonId ? { ...l, is_marked: true, can_mark: false, marked_at: new Date().toISOString() } : l
     ))
-    loadData() // Reload stats
+    loadData()
   }
 
   const today = new Date()
   const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
 
-  if (loading) {
-    return <Loader />
-  }
+  if (loading) return <Loader />
 
   return (
     <div className="min-h-screen pb-20">
       <Header
-        title={`Salom, ${user.full_name?.split(' ')[0]}! 👋`}
+        title={`Salom, ${user?.full_name?.split(' ')[0]}! 👋`}
         subtitle={`${dayNames[today.getDay()]}, ${today.toLocaleDateString('uz')}`}
       />
 
