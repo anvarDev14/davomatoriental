@@ -54,7 +54,9 @@ export const teacherAPI = {
   getToday: () => api.get('/teacher/today'),
   getGroups: () => api.get('/teacher/groups'),
   getSubjects: () => api.get('/teacher/subjects'),
-  createLesson: (groupId, subjectId, room) => 
+  getSchedule: () => api.get('/teacher/schedule'),
+  getStats: () => api.get('/teacher/stats'),
+  createLesson: (groupId, subjectId, room) =>
     api.post('/teacher/lesson/create', { group_id: groupId, subject_id: subjectId, room }),
   openLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/open`),
   closeLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/close`),

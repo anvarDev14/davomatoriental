@@ -12,7 +12,16 @@ import StudentStatistics from './pages/student/Statistics'
 // Teacher pages
 import TeacherHome from './pages/teacher/Home'
 import TeacherProfile from './pages/teacher/Profile'
+import TeacherSchedule from './pages/teacher/Schedule'
+import TeacherStatistics from './pages/teacher/Statistics'
 import CreateLesson from './pages/teacher/CreateLesson'
+
+// Admin pages
+import AdminHome from './pages/admin/Home'
+import AdminUsers from './pages/admin/Users'
+import AdminGroups from './pages/admin/Groups'
+import AdminSubjects from './pages/admin/Subjects'
+import AdminDirections from './pages/admin/Directions'
 
 // Loader
 import Loader from './components/Loader'
@@ -63,13 +72,19 @@ function RoleBasedRoutes() {
   if (isAdmin) {
     return (
       <Routes>
-        <Route path="/" element={<Navigate to="/teacher" replace />} />
+        <Route path="/" element={<Navigate to="/admin" replace />} />
+        <Route path="/admin" element={<AdminHome />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/groups" element={<AdminGroups />} />
+        <Route path="/admin/subjects" element={<AdminSubjects />} />
+        <Route path="/admin/directions" element={<AdminDirections />} />
+        {/* Admin can also access teacher routes */}
         <Route path="/teacher" element={<TeacherHome />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />
         <Route path="/teacher/create" element={<CreateLesson />} />
-        <Route path="/teacher/schedule" element={<TeacherHome />} />
-        <Route path="/teacher/stats" element={<TeacherHome />} />
-        <Route path="*" element={<Navigate to="/teacher" replace />} />
+        <Route path="/teacher/schedule" element={<TeacherSchedule />} />
+        <Route path="/teacher/stats" element={<TeacherStatistics />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     )
   }
@@ -82,8 +97,8 @@ function RoleBasedRoutes() {
         <Route path="/teacher" element={<TeacherHome />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />
         <Route path="/teacher/create" element={<CreateLesson />} />
-        <Route path="/teacher/schedule" element={<TeacherHome />} />
-        <Route path="/teacher/stats" element={<TeacherHome />} />
+        <Route path="/teacher/schedule" element={<TeacherSchedule />} />
+        <Route path="/teacher/stats" element={<TeacherStatistics />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     )

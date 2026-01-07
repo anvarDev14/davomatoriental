@@ -80,7 +80,7 @@ function TeacherProfile() {
             </div>
             <div className="flex-1">
               <p className="text-xs text-slate-400">{t.profile.department}</p>
-              <p className="font-semibold text-slate-800">{user?.department || t.profile.notSet}</p>
+              <p className="font-semibold text-slate-800">{user?.teacher?.department || user?.department || t.profile.notSet}</p>
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ function TeacherProfile() {
             </div>
             <div className="flex-1">
               <p className="text-xs text-slate-400">{t.profile.employeeId}</p>
-              <p className="font-semibold text-slate-800">{user?.employee_id || t.profile.notSet}</p>
+              <p className="font-semibold text-slate-800">{user?.teacher?.employee_id || user?.employee_id || t.profile.notSet}</p>
             </div>
           </div>
         </div>
