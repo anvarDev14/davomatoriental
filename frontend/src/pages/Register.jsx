@@ -459,7 +459,7 @@ function Register() {
                       value={studentForm.full_name}
                       onChange={(e) => setStudentForm({ ...studentForm, full_name: e.target.value })}
                       placeholder={t?.register?.fullNamePlaceholder || "Masalan: Aliyev Vali Karimovich"}
-                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
 
@@ -490,7 +490,7 @@ function Register() {
                       value={studentForm.student_id}
                       onChange={(e) => setStudentForm({ ...studentForm, student_id: e.target.value })}
                       placeholder={t?.register?.studentIdPlaceholder || "Masalan: 12345"}
-                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
@@ -549,7 +549,7 @@ function Register() {
                       value={teacherForm.full_name}
                       onChange={(e) => setTeacherForm({ ...teacherForm, full_name: e.target.value })}
                       placeholder={t?.register?.fullNamePlaceholder || "Masalan: Aliyev Vali Karimovich"}
-                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
 
@@ -564,7 +564,7 @@ function Register() {
                       value={teacherForm.department}
                       onChange={(e) => setTeacherForm({ ...teacherForm, department: e.target.value })}
                       placeholder={t?.register?.departmentPlaceholder || "Masalan: Informatika"}
-                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
 
@@ -579,7 +579,7 @@ function Register() {
                       value={teacherForm.employee_id}
                       onChange={(e) => setTeacherForm({ ...teacherForm, employee_id: e.target.value })}
                       placeholder={t?.register?.employeeIdPlaceholder || "Masalan: T-001"}
-                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition"
+                      className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
                     />
                   </div>
                 </div>
