@@ -56,12 +56,17 @@ function AdminUsers() {
 
     hapticFeedback?.('medium')
     try {
-      await adminAPI.deleteUser(userId)
-      hapticFeedback?.('success')
-      showAlert?.(t.admin?.deleted || "O'chirildi!")
-      loadData()
+      const response = await adminAPI.deleteUser(userId)
+      // Check if response is successful (2xx status)
+      if (response.status >= 200 && response.status < 300) {
+        hapticFeedback?.('success')
+        showAlert?.(t.admin?.deleted || "O'chirildi!")
+        await loadData()
+      }
     } catch (err) {
-      showAlert?.(err.response?.data?.detail || t.error)
+      console.error('Delete user error:', err)
+      const errorMsg = err.response?.data?.detail || t.error
+      showAlert?.(typeof errorMsg === 'string' ? errorMsg : t.error)
     }
   }
 

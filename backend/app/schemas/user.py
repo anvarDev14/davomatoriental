@@ -95,6 +95,21 @@ class SubjectResponse(BaseModel):
     id: int
     name: str
     short_name: Optional[str]
-    
+
     class Config:
         from_attributes = True
+
+
+# Registration schemas
+class StudentRegisterRequest(BaseModel):
+    """Student registration request body"""
+    group_id: int
+    full_name: str
+    student_id: Optional[str] = None
+
+
+class TeacherRegisterRequest(BaseModel):
+    """Teacher registration request body"""
+    full_name: str
+    department: str
+    employee_id: Optional[str] = None

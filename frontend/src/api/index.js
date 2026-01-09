@@ -38,8 +38,18 @@ export const authAPI = {
   me: () => api.get('/auth/me'),
   getDirections: () => api.get('/auth/directions'),
   getGroups: (directionId) => api.get(`/auth/groups/${directionId}`),
-  registerStudent: (data) => api.post('/auth/register/student', data),
-  registerTeacher: (data) => api.post('/auth/register/teacher', data),
+  // Register student with request body
+  registerStudent: (data) => api.post('/auth/register/student', {
+    group_id: data.group_id,
+    full_name: data.full_name,
+    student_id: data.student_id || null
+  }),
+  // Register teacher with request body
+  registerTeacher: (data) => api.post('/auth/register/teacher', {
+    full_name: data.full_name,
+    department: data.department,
+    employee_id: data.employee_id || null
+  }),
   checkAdmin: () => api.get('/auth/check-admin')
 }
 

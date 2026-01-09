@@ -50,11 +50,17 @@ function TeacherHome() {
     setActionLoading(lessonId)
     hapticFeedback?.('medium')
     try {
-      await teacherAPI.openLesson(lessonId)
-      hapticFeedback?.('success')
-      loadData()
+      const response = await teacherAPI.openLesson(lessonId)
+      // Check if response is successful (2xx status)
+      if (response.status >= 200 && response.status < 300) {
+        hapticFeedback?.('success')
+        showAlert?.(t.teacher?.lessonOpened || "Dars ochildi!")
+        await loadData()
+      }
     } catch (err) {
-      showAlert?.(err.response?.data?.detail || t.error)
+      console.error('Open lesson error:', err)
+      const errorMsg = err.response?.data?.detail || t.error
+      showAlert?.(typeof errorMsg === 'string' ? errorMsg : t.error)
     } finally {
       setActionLoading(null)
     }
@@ -64,11 +70,17 @@ function TeacherHome() {
     setActionLoading(lessonId)
     hapticFeedback?.('medium')
     try {
-      await teacherAPI.closeLesson(lessonId)
-      hapticFeedback?.('success')
-      loadData()
+      const response = await teacherAPI.closeLesson(lessonId)
+      // Check if response is successful (2xx status)
+      if (response.status >= 200 && response.status < 300) {
+        hapticFeedback?.('success')
+        showAlert?.(t.teacher?.lessonClosed || "Dars yopildi!")
+        await loadData()
+      }
     } catch (err) {
-      showAlert?.(err.response?.data?.detail || t.error)
+      console.error('Close lesson error:', err)
+      const errorMsg = err.response?.data?.detail || t.error
+      showAlert?.(typeof errorMsg === 'string' ? errorMsg : t.error)
     } finally {
       setActionLoading(null)
     }

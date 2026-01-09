@@ -2,6 +2,35 @@ export const translations = {
   uz: {
     loading: "Yuklanmoqda...",
     error: "Xatolik yuz berdi",
+    register: {
+      welcome: "Xush kelibsiz!",
+      subtitle: "Davom etish uchun ro'yxatdan o'ting",
+      selectRole: "Kim sifatida ro'yxatdan o'tasiz?",
+      student: "Talaba",
+      studentDesc: "Darsga qatnashish",
+      teacher: "O'qituvchi",
+      teacherDesc: "Dars o'tkazish",
+      direction: "Yo'nalish",
+      group: "Guruh",
+      info: "Ma'lumot",
+      confirm: "Tasdiqlash",
+      back: "Orqaga",
+      selectDirection: "1. Yo'nalishni tanlang",
+      selectGroup: "2. Guruhni tanlang",
+      yourInfo: "3. Ma'lumotlaringiz",
+      teacherInfo: "O'qituvchi ma'lumotlari",
+      fullName: "Ism Familiya Sharif",
+      fullNamePlaceholder: "Masalan: Aliyev Vali Karimovich",
+      studentIdPlaceholder: "Masalan: 12345",
+      departmentPlaceholder: "Masalan: Informatika",
+      employeeIdPlaceholder: "Masalan: T-001",
+      enterName: "Ism familiyani kiriting!",
+      enterDepartment: "Kafedrani kiriting!",
+      noDirections: "Yo'nalishlar topilmadi",
+      noGroups: "Guruhlar topilmadi",
+      submit: "Tasdiqlash",
+      success: "Muvaffaqiyatli ro'yxatdan o'tdingiz!"
+    },
     nav: {
       home: "Bosh",
       schedule: "Jadval",
@@ -75,7 +104,9 @@ export const translations = {
       creating: "Yaratilmoqda...",
       noSubjects: "Sizga hech qanday fan tayinlanmagan",
       lessonCreated: "Dars muvaffaqiyatli yaratildi!",
-      lessonInfo: "Dars yaratilgandan so'ng, uni ochib davomatni boshqarishingiz mumkin."
+      lessonInfo: "Dars yaratilgandan so'ng, uni ochib davomatni boshqarishingiz mumkin.",
+      lessonOpened: "Dars ochildi!",
+      lessonClosed: "Dars yopildi!"
     },
     langModal: {
       title: "Tilni tanlang"
@@ -128,6 +159,35 @@ export const translations = {
   ru: {
     loading: "Загрузка...",
     error: "Произошла ошибка",
+    register: {
+      welcome: "Добро пожаловать!",
+      subtitle: "Зарегистрируйтесь для продолжения",
+      selectRole: "Кем вы хотите зарегистрироваться?",
+      student: "Студент",
+      studentDesc: "Посещать занятия",
+      teacher: "Преподаватель",
+      teacherDesc: "Проводить занятия",
+      direction: "Направление",
+      group: "Группа",
+      info: "Информация",
+      confirm: "Подтверждение",
+      back: "Назад",
+      selectDirection: "1. Выберите направление",
+      selectGroup: "2. Выберите группу",
+      yourInfo: "3. Ваши данные",
+      teacherInfo: "Данные преподавателя",
+      fullName: "ФИО",
+      fullNamePlaceholder: "Например: Иванов Иван Иванович",
+      studentIdPlaceholder: "Например: 12345",
+      departmentPlaceholder: "Например: Информатика",
+      employeeIdPlaceholder: "Например: T-001",
+      enterName: "Введите ФИО!",
+      enterDepartment: "Введите кафедру!",
+      noDirections: "Направления не найдены",
+      noGroups: "Группы не найдены",
+      submit: "Подтвердить",
+      success: "Регистрация успешна!"
+    },
     nav: {
       home: "Главная",
       schedule: "Расписание",
@@ -201,7 +261,9 @@ export const translations = {
       creating: "Создается...",
       noSubjects: "Вам не назначены предметы",
       lessonCreated: "Занятие успешно создано!",
-      lessonInfo: "После создания занятия вы можете открыть его и управлять посещаемостью."
+      lessonInfo: "После создания занятия вы можете открыть его и управлять посещаемостью.",
+      lessonOpened: "Занятие открыто!",
+      lessonClosed: "Занятие закрыто!"
     },
     langModal: {
       title: "Выберите язык"
@@ -213,6 +275,35 @@ export const translations = {
   en: {
     loading: "Loading...",
     error: "An error occurred",
+    register: {
+      welcome: "Welcome!",
+      subtitle: "Register to continue",
+      selectRole: "Who are you registering as?",
+      student: "Student",
+      studentDesc: "Attend classes",
+      teacher: "Teacher",
+      teacherDesc: "Conduct classes",
+      direction: "Direction",
+      group: "Group",
+      info: "Information",
+      confirm: "Confirm",
+      back: "Back",
+      selectDirection: "1. Select direction",
+      selectGroup: "2. Select group",
+      yourInfo: "3. Your information",
+      teacherInfo: "Teacher information",
+      fullName: "Full Name",
+      fullNamePlaceholder: "e.g.: John Smith",
+      studentIdPlaceholder: "e.g.: 12345",
+      departmentPlaceholder: "e.g.: Computer Science",
+      employeeIdPlaceholder: "e.g.: T-001",
+      enterName: "Please enter your name!",
+      enterDepartment: "Please enter department!",
+      noDirections: "No directions found",
+      noGroups: "No groups found",
+      submit: "Confirm",
+      success: "Registration successful!"
+    },
     nav: {
       home: "Home",
       schedule: "Schedule",
@@ -286,7 +377,9 @@ export const translations = {
       creating: "Creating...",
       noSubjects: "No subjects assigned to you",
       lessonCreated: "Lesson created successfully!",
-      lessonInfo: "After creating a lesson, you can open it and manage attendance."
+      lessonInfo: "After creating a lesson, you can open it and manage attendance.",
+      lessonOpened: "Lesson opened!",
+      lessonClosed: "Lesson closed!"
     },
     langModal: {
       title: "Select language"

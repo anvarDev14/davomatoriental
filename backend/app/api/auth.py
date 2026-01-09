@@ -19,7 +19,7 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.group import Group
 from app.models.direction import Direction
-from app.schemas.user import TelegramAuthData
+from app.schemas.user import TelegramAuthData, StudentRegisterRequest, TeacherRegisterRequest
 
 router = APIRouter(tags=["auth"])
 
@@ -245,26 +245,32 @@ async def get_groups_by_direction(
 
 @router.post("/register/student")
 async def register_student(
-        group_id: int = Query(..., description="Guruh ID"),
-        full_name: str = Query(..., description="To'liq ism"),
-        student_id: Optional[str] = Query(None, description="Talaba ID"),
+        data: StudentRegisterRequest,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
     """Talaba ro'yxatdan o'tishi"""
+    # Check if already registered as student
     result = await db.execute(
         select(Student).where(Student.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Siz allaqachon talaba sifatida ro'yxatdan o'tgansiz")
 
-    current_user.full_name = full_name
+    # Verify group exists
+    result = await db.execute(select(Group).where(Group.id == data.group_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Guruh topilmadi")
+
+    # Update user info
+    current_user.full_name = data.full_name
     current_user.role = 'student'
 
+    # Create student record
     student = Student(
         user_id=current_user.id,
-        group_id=group_id,
-        student_id=student_id
+        group_id=data.group_id,
+        student_id=data.student_id
     )
     db.add(student)
     await db.commit()
@@ -274,26 +280,27 @@ async def register_student(
 
 @router.post("/register/teacher")
 async def register_teacher(
-        full_name: str = Query(..., description="To'liq ism"),
-        department: str = Query(..., description="Kafedra"),
-        employee_id: Optional[str] = Query(None, description="Xodim ID"),
+        data: TeacherRegisterRequest,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
     """O'qituvchi ro'yxatdan o'tishi"""
+    # Check if already registered as teacher
     result = await db.execute(
         select(Teacher).where(Teacher.user_id == current_user.id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Siz allaqachon o'qituvchi sifatida ro'yxatdan o'tgansiz")
 
-    current_user.full_name = full_name
+    # Update user info
+    current_user.full_name = data.full_name
     current_user.role = 'teacher'
 
+    # Create teacher record
     teacher = Teacher(
         user_id=current_user.id,
-        department=department,
-        employee_id=employee_id or f"T-{current_user.id}"
+        department=data.department,
+        employee_id=data.employee_id or f"T-{current_user.id}"
     )
     db.add(teacher)
     await db.commit()

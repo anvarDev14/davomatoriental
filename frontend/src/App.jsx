@@ -23,11 +23,14 @@ import AdminGroups from './pages/admin/Groups'
 import AdminSubjects from './pages/admin/Subjects'
 import AdminDirections from './pages/admin/Directions'
 
+// Auth pages
+import Register from './pages/Register'
+
 // Loader
 import Loader from './components/Loader'
 
 function RoleBasedRoutes() {
-  const { user, loading, error, isStudent, isTeacher, isAdmin } = useAuth()
+  const { user, loading, error, needsRegistration, isStudent, isTeacher, isAdmin, checkAuth } = useAuth()
 
   if (loading) {
     return <Loader />
@@ -63,6 +66,17 @@ function RoleBasedRoutes() {
           <p className="text-slate-500">Iltimos, Telegram orqali kiring</p>
         </div>
       </div>
+    )
+  }
+
+  // User needs to complete registration (student/teacher record)
+  if (needsRegistration) {
+    console.log('Redirecting to registration...')
+    return (
+      <Routes>
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/register" replace />} />
+      </Routes>
     )
   }
 
