@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useLanguage } from '../context/LanguageContext'
-import { Home, Calendar, BarChart3, User, Settings } from 'lucide-react'
+import { Home, Calendar, BarChart3, User, Settings, Users, BookOpen } from 'lucide-react'
 
 function BottomNav({ role = 'student' }) {
   const navigate = useNavigate()
@@ -25,9 +25,10 @@ function BottomNav({ role = 'student' }) {
 
   const adminNav = [
     { path: '/admin', icon: Home, label: t.nav?.home || 'Bosh' },
-    { path: '/admin/users', icon: User, label: t.admin?.users || 'Userlar' },
-    { path: '/admin/groups', icon: Calendar, label: t.admin?.groups || 'Guruhlar' },
-    { path: '/admin/subjects', icon: Settings, label: t.admin?.subjects || 'Fanlar' }
+    { path: '/admin/users', icon: Users, label: t.admin?.users || 'Userlar' },
+    { path: '/admin/groups', icon: User, label: t.admin?.groups || 'Guruhlar' },
+    { path: '/admin/subjects', icon: BookOpen, label: t.admin?.subjects || 'Fanlar' },
+    { path: '/admin/settings', icon: Settings, label: t.admin?.settings || 'Sozlamalar' }
   ]
 
   const navItems = role === 'admin' ? adminNav : role === 'teacher' ? teacherNav : studentNav

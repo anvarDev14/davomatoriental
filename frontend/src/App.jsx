@@ -22,6 +22,7 @@ import AdminUsers from './pages/admin/Users'
 import AdminGroups from './pages/admin/Groups'
 import AdminSubjects from './pages/admin/Subjects'
 import AdminDirections from './pages/admin/Directions'
+import AdminSettings from './pages/admin/Settings'
 
 // Auth pages
 import Register from './pages/Register'
@@ -92,6 +93,7 @@ function RoleBasedRoutes() {
         <Route path="/admin/groups" element={<AdminGroups />} />
         <Route path="/admin/subjects" element={<AdminSubjects />} />
         <Route path="/admin/directions" element={<AdminDirections />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         {/* Admin can also access teacher routes */}
         <Route path="/teacher" element={<TeacherHome />} />
         <Route path="/teacher/profile" element={<TeacherProfile />} />

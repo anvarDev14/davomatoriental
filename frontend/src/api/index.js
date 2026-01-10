@@ -111,4 +111,10 @@ export const scheduleAPI = {
   getGroups: () => api.get('/schedule/groups')
 }
 
+export const settingsAPI = {
+  getPublic: () => api.get('/settings/public'),
+  getAll: () => api.get('/settings/admin'),
+  update: (data) => api.put('/settings/admin', data)
+}
+
 export default api

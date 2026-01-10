@@ -48,7 +48,7 @@ async def init_db():
     async with engine.begin() as conn:
         # Import all models
         from app.models import user, direction, group, student, teacher
-        from app.models import subject, schedule, lesson, attendance
+        from app.models import subject, schedule, lesson, attendance, setting
         
         await conn.run_sync(Base.metadata.create_all)
     

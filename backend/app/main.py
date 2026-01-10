@@ -7,9 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 
-from app.config import settings
+from app.config import settings as app_settings
 from app.database import engine, Base, init_db
 from app.api import auth, student, teacher, schedule, attendance, admin
+from app.api import settings as settings_api
 from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 
@@ -36,7 +37,7 @@ app = FastAPI(
 # CORS sozlamalari
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=app_settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,6 +50,7 @@ app.include_router(teacher.router, prefix="/api/teacher", tags=["Teacher"])
 app.include_router(schedule.router, prefix="/api/schedule", tags=["Schedule"])
 app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(settings_api.router, prefix="/api/settings", tags=["Settings"])
 
 
 @app.get("/")

@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
+import { settingsAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import { useTelegram } from '../../hooks/useTelegram'
 import {
@@ -21,8 +22,32 @@ function TeacherProfile() {
   const { user: tgUser } = useTelegram()
   const [imgError, setImgError] = useState(false)
   const [showLangModal, setShowLangModal] = useState(false)
+  const [settings, setSettings] = useState({
+    support_link: '@oriental_support',
+    news_link: '@oriental_news'
+  })
 
   const avatarUrl = tgUser?.photo_url || user?.photo_url
+
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      const res = await settingsAPI.getPublic()
+      setSettings(res.data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // Convert @username to https://t.me/username
+  const getTelegramUrl = (link) => {
+    if (!link) return '#'
+    const username = link.startsWith('@') ? link.slice(1) : link
+    return `https://t.me/${username}`
+  }
 
   const handleLangChange = (code) => {
     changeLang(code)
@@ -122,7 +147,7 @@ function TeacherProfile() {
         </button>
 
         <a
-          href="https://t.me/oriental_support"
+          href={getTelegramUrl(settings.support_link)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-4 p-4 border-b border-slate-100 hover:bg-slate-50 transition"
@@ -133,12 +158,12 @@ function TeacherProfile() {
           <div className="flex-1">
             <p className="font-medium text-slate-800">{t.profile.support}</p>
           </div>
-          <span className="text-slate-400 text-sm">@oriental_support</span>
+          <span className="text-slate-400 text-sm">{settings.support_link}</span>
           <ChevronRight size={18} className="text-slate-300" />
         </a>
 
         <a
-          href="https://t.me/oriental_news"
+          href={getTelegramUrl(settings.news_link)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-4 p-4 hover:bg-slate-50 transition"
@@ -149,7 +174,7 @@ function TeacherProfile() {
           <div className="flex-1">
             <p className="font-medium text-slate-800">{t.profile.news}</p>
           </div>
-          <span className="text-slate-400 text-sm">@oriental_news</span>
+          <span className="text-slate-400 text-sm">{settings.news_link}</span>
           <ChevronRight size={18} className="text-slate-300" />
         </a>
       </motion.div>
