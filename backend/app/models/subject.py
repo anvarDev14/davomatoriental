@@ -18,6 +18,7 @@ class Subject(Base):
     
     # Relationships
     schedules = relationship("Schedule", back_populates="subject")
+    teacher_subjects = relationship("TeacherSubject", back_populates="subject", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Subject {self.name}>"

@@ -16,7 +16,12 @@ import {
   X,
   User,
   Briefcase,
-  Hash
+  Hash,
+  UserPlus,
+  Building,
+  BookOpen,
+  Check,
+  Loader2
 } from 'lucide-react'
 
 function AdminUsers() {
@@ -27,9 +32,19 @@ function AdminUsers() {
   const [activeTab, setActiveTab] = useState('students')
   const [students, setStudents] = useState([])
   const [teachers, setTeachers] = useState([])
+  const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedUser, setSelectedUser] = useState(null)
+
+  // Make Teacher Modal State
+  const [showMakeTeacherModal, setShowMakeTeacherModal] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState(null)
+  const [makeTeacherForm, setMakeTeacherForm] = useState({
+    department: '',
+    employee_id: '',
+    subject_ids: []
+  })
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -38,12 +53,14 @@ function AdminUsers() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [studentsRes, teachersRes] = await Promise.all([
+      const [studentsRes, teachersRes, subjectsRes] = await Promise.all([
         adminAPI.getStudents(),
-        adminAPI.getTeachers()
+        adminAPI.getTeachers(),
+        adminAPI.getSubjects()
       ])
       setStudents(studentsRes.data)
       setTeachers(teachersRes.data)
+      setSubjects(subjectsRes.data)
     } catch (err) {
       console.error(err)
     } finally {
@@ -57,7 +74,6 @@ function AdminUsers() {
     hapticFeedback?.('medium')
     try {
       const response = await adminAPI.deleteUser(userId)
-      // Check if response is successful (2xx status)
       if (response.status >= 200 && response.status < 300) {
         hapticFeedback?.('success')
         showAlert?.(t.admin?.deleted || "O'chirildi!")
@@ -67,6 +83,70 @@ function AdminUsers() {
       console.error('Delete user error:', err)
       const errorMsg = err.response?.data?.detail || t.error
       showAlert?.(typeof errorMsg === 'string' ? errorMsg : t.error)
+    }
+  }
+
+  const openMakeTeacherModal = (student) => {
+    hapticFeedback?.('light')
+    setSelectedStudent(student)
+    setMakeTeacherForm({
+      department: '',
+      employee_id: '',
+      subject_ids: []
+    })
+    setShowMakeTeacherModal(true)
+  }
+
+  const closeMakeTeacherModal = () => {
+    setShowMakeTeacherModal(false)
+    setSelectedStudent(null)
+    setMakeTeacherForm({
+      department: '',
+      employee_id: '',
+      subject_ids: []
+    })
+  }
+
+  const toggleSubject = (subjectId) => {
+    hapticFeedback?.('light')
+    setMakeTeacherForm(prev => ({
+      ...prev,
+      subject_ids: prev.subject_ids.includes(subjectId)
+        ? prev.subject_ids.filter(id => id !== subjectId)
+        : [...prev.subject_ids, subjectId]
+    }))
+  }
+
+  const handleMakeTeacher = async () => {
+    if (!makeTeacherForm.department.trim()) {
+      showAlert?.("Bo'limni kiriting!")
+      return
+    }
+    if (makeTeacherForm.subject_ids.length === 0) {
+      showAlert?.("Kamida bitta fan tanlang!")
+      return
+    }
+
+    setSubmitting(true)
+    hapticFeedback?.('medium')
+
+    try {
+      await adminAPI.makeTeacher(selectedStudent.user_id, {
+        department: makeTeacherForm.department.trim(),
+        employee_id: makeTeacherForm.employee_id.trim() || null,
+        subject_ids: makeTeacherForm.subject_ids
+      })
+
+      hapticFeedback?.('success')
+      showAlert?.("Foydalanuvchi ustoz qilindi!")
+      closeMakeTeacherModal()
+      await loadData()
+    } catch (err) {
+      console.error('Make teacher error:', err)
+      const errorMsg = err.response?.data?.detail || "Xatolik yuz berdi"
+      showAlert?.(typeof errorMsg === 'string' ? errorMsg : "Xatolik yuz berdi")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -192,12 +272,23 @@ function AdminUsers() {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDelete(student.user_id)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Ustoz qilish button */}
+                      <button
+                        onClick={() => openMakeTeacherModal(student)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                        title="Ustoz qilish"
+                      >
+                        <UserPlus size={18} />
+                      </button>
+                      {/* Delete button */}
+                      <button
+                        onClick={() => handleDelete(student.user_id)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               ))
@@ -258,6 +349,153 @@ function AdminUsers() {
           </div>
         )}
       </div>
+
+      {/* Make Teacher Modal */}
+      <AnimatePresence>
+        {showMakeTeacherModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+            onClick={closeMakeTeacherModal}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-t-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-800">Ustoz qilish</h2>
+                <button
+                  onClick={closeMakeTeacherModal}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"
+                >
+                  <X size={18} className="text-slate-500" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-4 space-y-4">
+                {/* Selected Student Info */}
+                {selectedStudent && (
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center">
+                        <User size={24} className="text-slate-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800">{selectedStudent.full_name}</h3>
+                        <p className="text-sm text-slate-400">
+                          {selectedStudent.group_name} • {selectedStudent.direction_name}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Department Input */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+                    <Building size={16} />
+                    Bo'lim (Department) *
+                  </label>
+                  <input
+                    type="text"
+                    value={makeTeacherForm.department}
+                    onChange={(e) => setMakeTeacherForm({ ...makeTeacherForm, department: e.target.value })}
+                    placeholder="Masalan: Informatika kafedrasi"
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Employee ID Input */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+                    <Hash size={16} />
+                    Xodim ID (ixtiyoriy)
+                  </label>
+                  <input
+                    type="text"
+                    value={makeTeacherForm.employee_id}
+                    onChange={(e) => setMakeTeacherForm({ ...makeTeacherForm, employee_id: e.target.value })}
+                    placeholder="Masalan: T-001"
+                    className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 focus:border-slate-400 focus:outline-none transition text-slate-800 placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Subjects Checkbox List */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+                    <BookOpen size={16} />
+                    Fanlar *
+                  </label>
+                  <div className="bg-slate-50 rounded-xl border border-slate-200 max-h-[200px] overflow-y-auto">
+                    {subjects.length === 0 ? (
+                      <p className="p-4 text-center text-slate-400">Fanlar topilmadi</p>
+                    ) : (
+                      subjects.map(subject => (
+                        <label
+                          key={subject.id}
+                          className="flex items-center gap-3 p-3 border-b border-slate-100 last:border-b-0 cursor-pointer hover:bg-slate-100 transition"
+                        >
+                          <div
+                            className={`w-5 h-5 rounded flex items-center justify-center transition ${
+                              makeTeacherForm.subject_ids.includes(subject.id)
+                                ? 'bg-slate-800'
+                                : 'border-2 border-slate-300'
+                            }`}
+                            onClick={() => toggleSubject(subject.id)}
+                          >
+                            {makeTeacherForm.subject_ids.includes(subject.id) && (
+                              <Check size={14} className="text-white" />
+                            )}
+                          </div>
+                          <span className="text-slate-800">{subject.name}</span>
+                          {subject.short_name && (
+                            <span className="text-xs text-slate-400">({subject.short_name})</span>
+                          )}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  {makeTeacherForm.subject_ids.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      {makeTeacherForm.subject_ids.length} ta fan tanlandi
+                    </p>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleMakeTeacher}
+                  disabled={submitting}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Yuklanmoqda...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={20} />
+                      Ustoz qilish
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Safe area padding */}
+              <div className="h-8" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav role="admin" />
     </div>

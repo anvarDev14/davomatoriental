@@ -20,6 +20,7 @@ class Teacher(Base):
     # Relationships
     user = relationship("User", back_populates="teacher")
     schedules = relationship("Schedule", back_populates="teacher")
+    teacher_subjects = relationship("TeacherSubject", back_populates="teacher", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Teacher {self.employee_id}>"

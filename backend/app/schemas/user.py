@@ -2,7 +2,7 @@
 User schemas
 """
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -113,3 +113,10 @@ class TeacherRegisterRequest(BaseModel):
     full_name: str
     department: str
     employee_id: Optional[str] = None
+
+
+class MakeTeacherRequest(BaseModel):
+    """Admin make teacher request body"""
+    department: str
+    employee_id: Optional[str] = None
+    subject_ids: List[int]  # Fanlar ID lari

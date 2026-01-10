@@ -15,10 +15,12 @@ from app.models.teacher import Teacher
 from app.models.group import Group
 from app.models.direction import Direction
 from app.models.subject import Subject
+from app.models.teacher_subject import TeacherSubject
 from app.models.schedule import Schedule
 from app.models.lesson import Lesson
 from app.models.attendance import Attendance
 from app.api.auth import get_current_user
+from app.schemas.user import MakeTeacherRequest
 
 router = APIRouter(tags=["admin"])
 
@@ -546,3 +548,70 @@ async def delete_user(
     await db.commit()
 
     return {"success": True, "message": "User o'chirildi"}
+
+
+# ============ USTOZ TAYINLASH ============
+
+@router.post("/make-teacher/{user_id}")
+async def make_teacher(
+        user_id: int,
+        data: MakeTeacherRequest,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    """Talabani ustoz qilish"""
+    await check_admin(current_user, db)
+
+    # User ni topish
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+
+    # Allaqachon teacher emasligini tekshirish
+    result = await db.execute(select(Teacher).where(Teacher.user_id == user_id))
+    existing_teacher = result.scalar_one_or_none()
+
+    if existing_teacher:
+        raise HTTPException(status_code=400, detail="Bu foydalanuvchi allaqachon o'qituvchi")
+
+    # Fanlarni tekshirish
+    if not data.subject_ids:
+        raise HTTPException(status_code=400, detail="Kamida bitta fan tanlang")
+
+    for subject_id in data.subject_ids:
+        result = await db.execute(select(Subject).where(Subject.id == subject_id))
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Fan topilmadi: ID {subject_id}")
+
+    # Student bo'lsa, student recordni o'chirish
+    await db.execute(delete(Student).where(Student.user_id == user_id))
+
+    # User role ni teacher ga o'zgartirish
+    user.role = 'teacher'
+
+    # Teacher record yaratish
+    teacher = Teacher(
+        user_id=user_id,
+        department=data.department,
+        employee_id=data.employee_id or f"T-{user_id}"
+    )
+    db.add(teacher)
+    await db.flush()  # Teacher ID olish uchun
+
+    # Teacher subjects qo'shish
+    for subject_id in data.subject_ids:
+        teacher_subject = TeacherSubject(
+            teacher_id=teacher.id,
+            subject_id=subject_id
+        )
+        db.add(teacher_subject)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Foydalanuvchi ustoz qilindi",
+        "teacher_id": teacher.id
+    }

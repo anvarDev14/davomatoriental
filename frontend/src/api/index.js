@@ -96,7 +96,13 @@ export const adminAPI = {
   getAttendanceReport: (params) => api.get('/admin/attendance/report', { params }),
   exportAttendance: (params) => api.get('/admin/attendance/export', { params, responseType: 'blob' }),
   getTodayLessons: () => api.get('/admin/lessons/today'),
-  deleteUser: (id) => api.delete(`/admin/users/${id}`)
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  // Ustoz qilish
+  makeTeacher: (userId, data) => api.post(`/admin/make-teacher/${userId}`, {
+    department: data.department,
+    employee_id: data.employee_id,
+    subject_ids: data.subject_ids
+  })
 }
 
 export const scheduleAPI = {
