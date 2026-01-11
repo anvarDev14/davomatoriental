@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useLanguage } from '../context/LanguageContext'
-import { Home, Calendar, BarChart3, User, Settings, Users, BookOpen } from 'lucide-react'
+import { Home, Calendar, BarChart3, User, Settings, Users, BookOpen, FileSpreadsheet } from 'lucide-react'
 
 function BottomNav({ role = 'student' }) {
   const navigate = useNavigate()
@@ -26,8 +26,8 @@ function BottomNav({ role = 'student' }) {
   const adminNav = [
     { path: '/admin', icon: Home, label: t.nav?.home || 'Bosh' },
     { path: '/admin/users', icon: Users, label: t.admin?.users || 'Userlar' },
+    { path: '/admin/reports', icon: FileSpreadsheet, label: t.admin?.reports || 'Hisobot' },
     { path: '/admin/groups', icon: User, label: t.admin?.groups || 'Guruhlar' },
-    { path: '/admin/subjects', icon: BookOpen, label: t.admin?.subjects || 'Fanlar' },
     { path: '/admin/settings', icon: Settings, label: t.admin?.settings || 'Sozlamalar' }
   ]
 

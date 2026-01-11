@@ -150,8 +150,9 @@ async def get_today_lessons(
             "start_time": schedule.start_time.isoformat() if schedule.start_time else None,
             "end_time": schedule.end_time.isoformat() if schedule.end_time else None,
             "is_marked": attendance is not None,
+            "attendance_status": attendance.status if attendance else None,
             "marked_at": attendance.marked_at.isoformat() if attendance and attendance.marked_at else None,
-            "can_mark": can_mark,
+            "can_mark": False,  # Talaba endi o'zi mark qila olmaydi
             "attendance_count": attendance_count,
             "total_students": total_students
         })

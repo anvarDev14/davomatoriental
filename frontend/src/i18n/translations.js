@@ -118,6 +118,8 @@ export const translations = {
       groups: "Guruhlar",
       subjects: "Fanlar",
       directions: "Yo'nalishlar",
+      reports: "Hisobot",
+      settings: "Sozlamalar",
       management: "Boshqaruv",
       todayStats: "Bugungi statistika",
       todayLessons: "Bugungi darslar",

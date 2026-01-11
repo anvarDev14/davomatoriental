@@ -385,105 +385,228 @@ async def export_attendance_excel(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Davomatni Excel formatda eksport qilish"""
+    """
+    Davomatni Excel formatda eksport qilish (Pivot Table formatda)
+
+    Format:
+    | # | Talaba | 01.01 | 02.01 | 03.01 | ... | Jami |
+    |---|--------|-------|-------|-------|-----|------|
+    | 1 | Aliyev | + | + | - | ... | 80% |
+    """
     await check_admin(current_user, db)
 
     try:
         import openpyxl
-        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     except ImportError:
         raise HTTPException(status_code=500, detail="openpyxl kutubxonasi o'rnatilmagan")
 
-    # Ma'lumotlarni olish
-    query = select(Attendance).options(
-        selectinload(Attendance.student).selectinload(Student.user),
-        selectinload(Attendance.student).selectinload(Student.group),
-        selectinload(Attendance.lesson).selectinload(Lesson.schedule).selectinload(Schedule.subject)
-    )
-
-    # Filter conditions
-    conditions = []
-
-    if start_date and start_date.strip():
+    # Sanalarni tekshirish
+    if not start_date or not start_date.strip():
+        start = date.today() - timedelta(days=30)
+    else:
         try:
             start = date.fromisoformat(start_date)
-            conditions.append(Lesson.date >= start)
         except:
-            pass
+            start = date.today() - timedelta(days=30)
 
-    if end_date and end_date.strip():
+    if not end_date or not end_date.strip():
+        end = date.today()
+    else:
         try:
             end = date.fromisoformat(end_date)
-            conditions.append(Lesson.date <= end)
         except:
-            pass
+            end = date.today()
+
+    # Guruh ma'lumotlari
+    group_name = "Barcha guruhlar"
+    if group_id:
+        result = await db.execute(select(Group).where(Group.id == group_id))
+        group = result.scalar_one_or_none()
+        if group:
+            group_name = group.name
+
+    # Talabalarni olish
+    students_query = select(Student).options(selectinload(Student.user))
+    if group_id:
+        students_query = students_query.where(Student.group_id == group_id)
+    students_query = students_query.order_by(Student.id)
+
+    result = await db.execute(students_query)
+    students = result.scalars().all()
+
+    if not students:
+        raise HTTPException(status_code=404, detail="Talabalar topilmadi")
+
+    # Darslarni olish (sanalar orasida)
+    lessons_query = select(Lesson).options(
+        selectinload(Lesson.schedule).selectinload(Schedule.group)
+    ).where(
+        and_(
+            Lesson.date >= start,
+            Lesson.date <= end,
+            Lesson.status == "closed"  # Faqat yopilgan darslar
+        )
+    )
 
     if group_id:
-        conditions.append(Student.group_id == group_id)
+        lessons_query = lessons_query.join(Schedule).where(Schedule.group_id == group_id)
 
-    if conditions:
-        query = query.join(Attendance.lesson).join(Attendance.student)
-        for cond in conditions:
-            query = query.where(cond)
+    lessons_query = lessons_query.order_by(Lesson.date)
+    result = await db.execute(lessons_query)
+    lessons = result.scalars().all()
 
-    result = await db.execute(query.order_by(Attendance.id.desc()))
+    # Unikal sanalarni olish
+    unique_dates = sorted(set(l.date for l in lessons))
+
+    # Davomat ma'lumotlarini olish
+    attendance_query = select(Attendance).options(
+        selectinload(Attendance.lesson)
+    )
+
+    if group_id:
+        attendance_query = attendance_query.join(Student).where(Student.group_id == group_id)
+
+    result = await db.execute(attendance_query)
     attendances = result.scalars().all()
+
+    # Davomat dictionary: {(student_id, date): status}
+    attendance_dict = {}
+    for a in attendances:
+        if a.lesson:
+            key = (a.student_id, a.lesson.date)
+            attendance_dict[key] = a.status
 
     # Excel yaratish
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Davomat"
 
-    # Sarlavhalar
-    headers = ["#", "Talaba", "Talaba ID", "Guruh", "Fan", "Sana", "Status", "Vaqt"]
+    # Styles
     header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    present_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+    absent_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    late_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+
+    # Sarlavha - Guruh nomi
+    ws.merge_cells('A1:D1')
+    title_cell = ws.cell(row=1, column=1, value=f"Davomat hisoboti: {group_name}")
+    title_cell.font = Font(bold=True, size=14)
+
+    ws.merge_cells('A2:D2')
+    date_cell = ws.cell(row=2, column=1, value=f"Davr: {start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}")
+    date_cell.font = Font(size=11)
+
+    # Header row (row 4)
+    header_row = 4
+    headers = ["#", "Talaba"]
+
+    # Sanalarni qo'shish
+    for d in unique_dates:
+        headers.append(d.strftime("%d.%m"))
+
+    headers.append("Keldi")
+    headers.append("Jami")
+    headers.append("%")
 
     for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=header)
+        cell = ws.cell(row=header_row, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center")
+        cell.alignment = center_align
+        cell.border = thin_border
 
     # Ma'lumotlar
-    status_colors = {
-        "present": "C6EFCE",
-        "late": "FFEB9C",
-        "absent": "FFC7CE"
-    }
+    for row_idx, student in enumerate(students, 1):
+        row = header_row + row_idx
 
-    for row, a in enumerate(attendances, 2):
-        ws.cell(row=row, column=1, value=row - 1)
-        ws.cell(row=row, column=2, value=a.student.user.full_name if a.student and a.student.user else "-")
-        ws.cell(row=row, column=3, value=a.student.student_id if a.student else "-")
-        ws.cell(row=row, column=4, value=a.student.group.name if a.student and a.student.group else "-")
-        ws.cell(row=row, column=5,
-                value=a.lesson.schedule.subject.name if a.lesson and a.lesson.schedule and a.lesson.schedule.subject else "-")
-        ws.cell(row=row, column=6, value=a.lesson.date.isoformat() if a.lesson else "-")
+        # #
+        ws.cell(row=row, column=1, value=row_idx).border = thin_border
+        ws.cell(row=row, column=1).alignment = center_align
 
-        status_cell = ws.cell(row=row, column=7, value=a.status)
-        if a.status in status_colors:
-            status_cell.fill = PatternFill(start_color=status_colors[a.status], end_color=status_colors[a.status],
-                                           fill_type="solid")
+        # Talaba ismi
+        name_cell = ws.cell(row=row, column=2, value=student.user.full_name if student.user else "Nomalum")
+        name_cell.border = thin_border
 
-        ws.cell(row=row, column=8, value=a.marked_at.strftime("%H:%M") if a.marked_at else "-")
+        # Har bir sana uchun davomat
+        present_count = 0
+        total_lessons = len(unique_dates)
+
+        for col_idx, lesson_date in enumerate(unique_dates, 3):
+            key = (student.id, lesson_date)
+            status = attendance_dict.get(key)
+
+            cell = ws.cell(row=row, column=col_idx)
+            cell.alignment = center_align
+            cell.border = thin_border
+
+            if status == "present":
+                cell.value = "+"
+                cell.fill = present_fill
+                present_count += 1
+            elif status == "late":
+                cell.value = "K"  # Kechikdi
+                cell.fill = late_fill
+                present_count += 1  # Kechikkan ham hisoblanadi
+            elif status == "absent":
+                cell.value = "-"
+                cell.fill = absent_fill
+            else:
+                cell.value = ""
+
+        # Keldi soni
+        present_col = 3 + len(unique_dates)
+        present_cell = ws.cell(row=row, column=present_col, value=present_count)
+        present_cell.alignment = center_align
+        present_cell.border = thin_border
+
+        # Jami darslar
+        total_col = present_col + 1
+        total_cell = ws.cell(row=row, column=total_col, value=total_lessons)
+        total_cell.alignment = center_align
+        total_cell.border = thin_border
+
+        # Foiz
+        percentage = round((present_count / total_lessons * 100), 1) if total_lessons > 0 else 0
+        percent_col = total_col + 1
+        percent_cell = ws.cell(row=row, column=percent_col, value=f"{percentage}%")
+        percent_cell.alignment = center_align
+        percent_cell.border = thin_border
+
+        # Foizga qarab rang
+        if percentage >= 80:
+            percent_cell.fill = present_fill
+        elif percentage >= 50:
+            percent_cell.fill = late_fill
+        else:
+            percent_cell.fill = absent_fill
 
     # Ustun kengliklari
     ws.column_dimensions['A'].width = 5
     ws.column_dimensions['B'].width = 25
-    ws.column_dimensions['C'].width = 12
-    ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 20
-    ws.column_dimensions['F'].width = 12
-    ws.column_dimensions['G'].width = 10
-    ws.column_dimensions['H'].width = 10
+
+    for col_idx in range(3, 3 + len(unique_dates)):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = 6
+
+    ws.column_dimensions[openpyxl.utils.get_column_letter(3 + len(unique_dates))].width = 8
+    ws.column_dimensions[openpyxl.utils.get_column_letter(4 + len(unique_dates))].width = 8
+    ws.column_dimensions[openpyxl.utils.get_column_letter(5 + len(unique_dates))].width = 8
 
     # Faylni saqlash
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
-    filename = f"davomat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"davomat_{group_name}_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.xlsx"
 
     return StreamingResponse(
         output,

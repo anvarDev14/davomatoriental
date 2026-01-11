@@ -539,7 +539,10 @@ async def mark_student_attendance(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Talaba davomatini belgilash (toggle)"""
+    """
+    Talaba davomatini belgilash
+    status: present yoki absent
+    """
     teacher = await get_teacher(current_user, db)
 
     result = await db.execute(
@@ -557,6 +560,10 @@ async def mark_student_attendance(
 
     if lesson.status != LessonStatus.OPEN.value:
         raise HTTPException(status_code=400, detail="Dars ochiq emas")
+
+    # Status validatsiya
+    if status not in ["present", "absent"]:
+        status = "present"
 
     # Talaba mavjudligini tekshirish
     result = await db.execute(
@@ -582,28 +589,23 @@ async def mark_student_attendance(
     attendance = result.scalar_one_or_none()
 
     if attendance:
-        # Toggle: present -> absent -> present
-        if attendance.status == "present":
-            attendance.status = "absent"
-        else:
-            attendance.status = "present"
+        # To'g'ridan-to'g'ri status o'rnatish
+        attendance.status = status
         attendance.marked_by = "teacher"
         attendance.marked_at = datetime.utcnow()
-        new_status = attendance.status
     else:
         attendance = Attendance(
             lesson_id=lesson_id,
             student_id=student_id,
-            status="present",
+            status=status,
             marked_by="teacher",
             marked_at=datetime.utcnow()
         )
         db.add(attendance)
-        new_status = "present"
 
     await db.commit()
 
-    return {"success": True, "message": "Davomat yangilandi", "status": new_status}
+    return {"success": True, "message": "Davomat yangilandi", "status": status}
 
 
 @router.get("/schedule")
@@ -753,6 +755,7 @@ async def get_teacher_stats(
         "total_lessons": total_lessons,
         "total_groups": len(groups_list),
         "groups": groups_list
+
 
 
     }

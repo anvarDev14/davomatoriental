@@ -72,7 +72,8 @@ export const teacherAPI = {
   closeLesson: (lessonId) => api.post(`/teacher/lesson/${lessonId}/close`),
   deleteLesson: (lessonId) => api.delete(`/teacher/lesson/${lessonId}`),
   getLessonAttendance: (lessonId) => api.get(`/teacher/lesson/${lessonId}/attendance`),
-  markStudent: (lessonId, studentId) => api.post(`/teacher/lesson/${lessonId}/mark/${studentId}`)
+  markStudent: (lessonId, studentId, status = 'present') =>
+    api.post(`/teacher/lesson/${lessonId}/mark/${studentId}?status=${status}`)
 }
 
 export const attendanceAPI = {

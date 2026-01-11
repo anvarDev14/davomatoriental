@@ -34,9 +34,9 @@ function TeacherLessonDetail() {
   const handleMark = async (studentId, status) => {
     setActionLoading(studentId)
     hapticFeedback('light')
-    
+
     try {
-      await teacherAPI.markAttendance(id, studentId, status)
+      await teacherAPI.markStudent(id, studentId, status)
       hapticFeedback('success')
       loadData()
     } catch (err) {

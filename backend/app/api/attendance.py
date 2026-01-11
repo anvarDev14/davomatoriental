@@ -20,108 +20,11 @@ from app.config import settings
 router = APIRouter()
 
 
-@router.post("/mark", response_model=MarkAttendanceResponse)
-async def mark_attendance(
-    data: AttendanceCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Davomat qilish"""
-    # Talabani olish
-    result = await db.execute(
-        select(Student).where(Student.user_id == current_user.id)
-    )
-    student = result.scalar_one_or_none()
-    
-    if not student:
-        return MarkAttendanceResponse(
-            success=False,
-            message="Siz talaba sifatida ro'yxatdan o'tmagansiz"
-        )
-    
-    # Darsni olish
-    result = await db.execute(
-        select(Lesson)
-        .options(selectinload(Lesson.schedule).selectinload(Schedule.subject))
-        .where(Lesson.id == data.lesson_id)
-    )
-    lesson = result.scalar_one_or_none()
-    
-    if not lesson:
-        return MarkAttendanceResponse(
-            success=False,
-            message="Dars topilmadi"
-        )
-    
-    # Tekshiruvlar
-    if lesson.status != LessonStatus.OPEN.value:
-        return MarkAttendanceResponse(
-            success=False,
-            message="Dars hali ochilmagan yoki yopilgan"
-        )
-    
-    if lesson.schedule.group_id != student.group_id:
-        return MarkAttendanceResponse(
-            success=False,
-            message="Bu dars sizning guruhingiz uchun emas"
-        )
-    
-    # Mavjud davomat tekshirish
-    result = await db.execute(
-        select(Attendance).where(
-            and_(
-                Attendance.lesson_id == lesson.id,
-                Attendance.student_id == student.id
-            )
-        )
-    )
-    existing = result.scalar_one_or_none()
-    
-    if existing:
-        return MarkAttendanceResponse(
-            success=False,
-            message="Siz allaqachon davomat qilgansiz"
-        )
-    
-    # Vaqt tekshirish
-    now = datetime.now()
-    lesson_start = datetime.combine(lesson.date, lesson.schedule.start_time)
-    close_time = lesson_start + timedelta(minutes=settings.LESSON_CLOSE_AFTER_MINUTES)
-    
-    if now > close_time:
-        return MarkAttendanceResponse(
-            success=False,
-            message="Davomat vaqti tugagan"
-        )
-    
-    # Kech kelganlik tekshirish
-    late_threshold = lesson_start + timedelta(minutes=15)
-    status = AttendanceStatus.LATE.value if now > late_threshold else AttendanceStatus.PRESENT.value
-    
-    # Davomat yaratish
-    attendance = Attendance(
-        lesson_id=lesson.id,
-        student_id=student.id,
-        status=status,
-        marked_by="self"
-    )
-    db.add(attendance)
-    await db.commit()
-    await db.refresh(attendance)
-    
-    return MarkAttendanceResponse(
-        success=True,
-        message="Davomat muvaffaqiyatli belgilandi!" if status == "present" else "Davomat belgilandi (kech kelish)",
-        attendance={
-            "id": attendance.id,
-            "lesson_id": attendance.lesson_id,
-            "student_id": attendance.student_id,
-            "status": attendance.status,
-            "marked_at": attendance.marked_at,
-            "marked_by": attendance.marked_by,
-            "note": attendance.note
-        }
-    )
+# NOTE: Talabalar o'zlari davomat qila olmaydi - faqat ustoz qiladi
+# Bu endpoint o'chirilgan / disabled
+# @router.post("/mark", response_model=MarkAttendanceResponse)
+# async def mark_attendance(...):
+#     Eski kod - endi ishlamaydi
 
 
 @router.get("/history")
