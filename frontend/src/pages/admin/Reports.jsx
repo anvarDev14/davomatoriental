@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useLanguage } from '../../context/LanguageContext'
 import { adminAPI } from '../../api'
 import BottomNav from '../../components/BottomNav'
 import Loader from '../../components/Loader'
@@ -11,12 +10,10 @@ import {
   Download,
   Users,
   Loader2,
-  CheckCircle,
   AlertCircle
 } from 'lucide-react'
 
 function AdminReports() {
-  const { t } = useLanguage()
   const { showAlert, hapticFeedback } = useTelegram()
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
@@ -133,8 +130,8 @@ function AdminReports() {
 
           {/* Guruh tanlash */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              <Users size={16} className="inline mr-2" />
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <Users size={16} />
               Guruh
             </label>
             <select
@@ -151,11 +148,11 @@ function AdminReports() {
             </select>
           </div>
 
-          {/* Sanalar */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                <Calendar size={16} className="inline mr-2" />
+          {/* Sanalar - bir qatorda */}
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                <Calendar size={16} />
                 Boshlanish
               </label>
               <input
@@ -165,9 +162,9 @@ function AdminReports() {
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-800"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                <Calendar size={16} className="inline mr-2" />
+            <div className="flex-1">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+                <Calendar size={16} />
                 Tugash
               </label>
               <input
@@ -207,7 +204,7 @@ function AdminReports() {
           className="mt-4 bg-blue-50 rounded-2xl p-4 border border-blue-200"
         >
           <div className="flex items-start gap-3">
-            <AlertCircle size={20} className="text-blue-600 mt-0.5" />
+            <AlertCircle size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-blue-800">
               <p className="font-medium mb-1">Excel format haqida:</p>
               <ul className="list-disc ml-4 space-y-1 text-blue-700">
